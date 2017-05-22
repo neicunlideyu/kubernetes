@@ -82,6 +82,11 @@ func VisitContainers(podSpec *api.PodSpec, mask ContainerType, visitor Container
 	return true
 }
 
+const (
+	PodAutoPortAnnotation         = "pod.tce.kubernetes.io/autoport"
+	PodHostPathTemplateAnnotation = "pod.tce.kubernetes.io/hostPathTemplate"
+)
+
 // Visitor is called with each object name, and returns true if visiting should continue
 type Visitor func(name string) (shouldContinue bool)
 

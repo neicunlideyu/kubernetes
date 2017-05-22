@@ -5575,7 +5575,7 @@ func TestValidateEphemeralContainers(t *testing.T) {
 			},
 		},
 	} {
-		if errs := validateEphemeralContainers(ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers")); len(errs) != 0 {
+		if errs := validateEphemeralContainers(false, ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers")); len(errs) != 0 {
 			t.Errorf("expected success for '%s' but got errors: %v", title, errs)
 		}
 	}

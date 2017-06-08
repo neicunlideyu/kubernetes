@@ -208,6 +208,7 @@ type HostInterface interface {
 	LatestLoopEntryTime() time.Time
 	GetExec(podFullName string, podUID types.UID, containerName string, cmd []string, streamOpts remotecommandserver.Options) (*url.URL, error)
 	GetAttach(podFullName string, podUID types.UID, containerName string, streamOpts remotecommandserver.Options) (*url.URL, error)
+	PLEGHealthCheck() error
 	GetPortForward(podName, podNamespace string, podUID types.UID, portForwardOpts portforward.V4Options) (*url.URL, error)
 }
 
@@ -304,6 +305,7 @@ func (s *Server) InstallDefaultHandlers(enableCAdvisorJSONEndpoints bool) {
 	healthz.InstallHandler(s.restfulCont,
 		healthz.PingHealthz,
 		healthz.LogHealthz,
+		healthz.NamedCheck("PLEG", s.plegHealthCheck),
 		healthz.NamedCheck("syncloop", s.syncLoopHealthCheck),
 	)
 
@@ -561,6 +563,11 @@ func (s *Server) syncLoopHealthCheck(req *http.Request) error {
 		return fmt.Errorf("sync Loop took longer than expected")
 	}
 	return nil
+}
+
+// Checks if pleg, which lists pods periodically, is healthy.
+func (s *Server) plegHealthCheck(req *http.Request) error {
+	return s.host.PLEGHealthCheck()
 }
 
 // getContainerLogs handles containerLogs request against the Kubelet

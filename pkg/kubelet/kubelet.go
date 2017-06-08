@@ -755,7 +755,6 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 
 	klet.pleg = pleg.NewGenericPLEG(klet.containerRuntime, plegChannelCapacity, plegRelistPeriod, klet.podCache, clock.RealClock{})
 	klet.runtimeState = newRuntimeState(maxWaitForContainerRuntime)
-	klet.runtimeState.addHealthCheck("PLEG", klet.pleg.Healthy)
 	if _, err := klet.updatePodCIDR(kubeCfg.PodCIDR); err != nil {
 		klog.Errorf("Pod CIDR update failed %v", err)
 	}
@@ -2162,6 +2161,12 @@ func (kl *Kubelet) LatestLoopEntryTime() time.Time {
 		return time.Time{}
 	}
 	return val.(time.Time)
+}
+
+// PLEGHealthCheck returns whether the PLEG is healthy.
+func (kl *Kubelet) PLEGHealthCheck() error {
+	_, err := kl.pleg.Healthy()
+	return err
 }
 
 // updateRuntimeUp calls the container runtime status callback, initializing

@@ -128,10 +128,6 @@ func newWorker(
 func (w *worker) run() {
 	probeTickerPeriod := time.Duration(w.spec.PeriodSeconds) * time.Second
 
-	// If kubelet restarted the probes could be started in rapid succession.
-	// Let the worker wait for a random portion of tickerPeriod before probing.
-	time.Sleep(time.Duration(rand.Float64() * float64(probeTickerPeriod)))
-
 	probeTicker := time.NewTicker(probeTickerPeriod)
 
 	defer func() {
@@ -146,6 +142,22 @@ func (w *worker) run() {
 		ProberResults.Delete(w.proberResultsFailedMetricLabels)
 		ProberResults.Delete(w.proberResultsUnknownMetricLabels)
 	}()
+
+	// If kubelet restarted the probes could be started in rapid succession.
+	// Let the worker wait for a random portion of tickerPeriod before probing.
+	// Start probing once the phase of pod is running.
+	if w.probeType != readiness {
+		time.Sleep(time.Duration(rand.Float64() * float64(probeTickerPeriod)))
+	} else {
+		klog.V(3).Infof("Wait4 readiness probe pod: %v, %s", format.Pod(w.pod), w.pod.Status.Phase)
+		for {
+			time.Sleep(time.Second)
+			if w.pod.Status.Phase == v1.PodRunning {
+				klog.V(3).Infof("Start readiness probe pod: %v", format.Pod(w.pod))
+				break
+			}
+		}
+	}
 
 probeLoop:
 	for w.doProbe() {
@@ -166,6 +178,12 @@ func (w *worker) stop() {
 	case w.stopCh <- struct{}{}:
 	default: // Non-blocking.
 	}
+}
+
+// start starts the probe worker. The worker handles update itself from its manager.
+func (w *worker) start() {
+	klog.V(3).Infof("Activate readiness probe pod: %v, %s", format.Pod(w.pod), w.pod.Status.Phase)
+	w.pod.Status.Phase = v1.PodRunning
 }
 
 // doProbe probes the container once and records the result.

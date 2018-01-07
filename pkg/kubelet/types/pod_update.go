@@ -29,6 +29,8 @@ const (
 	ConfigMirrorAnnotationKey    = v1.MirrorPodAnnotationKey
 	ConfigFirstSeenAnnotationKey = "kubernetes.io/config.seen"
 	ConfigHashAnnotationKey      = "kubernetes.io/config.hash"
+
+	CriticalTCEPodAnnotationKey  = "scheduler.alpha.kubernetes.io/tce-critical-pod"
 )
 
 // PodOperation defines what changes will be made on a pod configuration.
@@ -166,12 +168,26 @@ func IsCriticalPod(pod *v1.Pod) bool {
 // Preemptable returns true if preemptor pod can preempt preemptee pod
 // if preemptee is not critical or if preemptor's priority is greater than preemptee's priority
 func Preemptable(preemptor, preemptee *v1.Pod) bool {
+	// tce-critical pods aren't allowed to be preemeetd in any case.
+	if IsTCECriticalPod(preemptee) {
+		return false
+	}
 	if IsCriticalPod(preemptor) && !IsCriticalPod(preemptee) {
 		return true
 	}
 	if (preemptor != nil && preemptor.Spec.Priority != nil) &&
 		(preemptee != nil && preemptee.Spec.Priority != nil) {
 		return *(preemptor.Spec.Priority) > *(preemptee.Spec.Priority)
+	}
+
+	return false
+}
+
+// IsTCECriticalPod returns true if the pod bears the tce-critical pod annotation key.
+func IsTCECriticalPod(pod *v1.Pod) bool {
+	val, ok := pod.Annotations[CriticalTCEPodAnnotationKey]
+	if ok && val == "" {
+		return true
 	}
 
 	return false

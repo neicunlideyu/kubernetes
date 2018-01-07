@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
@@ -53,6 +54,10 @@ func (pl *NodeUnschedulable) Filter(ctx context.Context, _ *framework.CycleState
 	if nodeInfo == nil || nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnknownCondition)
 	}
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return nil
+	}
+
 	// If pod tolerate unschedulable taint, it's also tolerate `node.Spec.Unschedulable`.
 	podToleratesUnschedulable := v1helper.TolerationsTolerateTaint(pod.Spec.Tolerations, &v1.Taint{
 		Key:    v1.TaintNodeUnschedulable,

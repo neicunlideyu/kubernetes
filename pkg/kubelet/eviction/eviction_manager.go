@@ -147,7 +147,7 @@ func (m *managerImpl) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAd
 	}
 	// Admit Critical pods even under resource pressure since they are required for system stability.
 	// https://github.com/kubernetes/kubernetes/issues/40573 has more details.
-	if kubelettypes.IsCriticalPod(attrs.Pod) {
+	if kubelettypes.IsCriticalPod(attrs.Pod) || kubelettypes.IsTCECriticalPod(attrs.Pod) {
 		return lifecycle.PodAdmitResult{Admit: true}
 	}
 
@@ -573,6 +573,10 @@ func (m *managerImpl) evictPod(pod *v1.Pod, gracePeriodOverride int64, evictMsg 
 	// https://github.com/kubernetes/kubernetes/issues/40573 has more details.
 	if kubelettypes.IsCriticalPod(pod) {
 		klog.Errorf("eviction manager: cannot evict a critical pod %s", format.Pod(pod))
+		return false
+	}
+	// skip eviction if current pod is critical in TCE.
+	if kubelettypes.IsTCECriticalPod(pod) {
 		return false
 	}
 	status := v1.PodStatus{

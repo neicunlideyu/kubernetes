@@ -23,6 +23,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
+	kubelettypes "k8s.io/kubernetes/pkg/kubelet/types"
 	pluginhelper "k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	"k8s.io/kubernetes/pkg/scheduler/nodeinfo"
@@ -55,6 +56,9 @@ func (pl *TaintToleration) Name() string {
 func (pl *TaintToleration) Filter(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfo *nodeinfo.NodeInfo) *framework.Status {
 	if nodeInfo == nil || nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.Error, "invalid nodeInfo")
+	}
+	if kubelettypes.IsTCECriticalPod(pod) {
+		return nil
 	}
 
 	taints, err := nodeInfo.Taints()

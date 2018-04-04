@@ -102,6 +102,9 @@ var (
 		v1.NodePIDPressure: {
 			v1.ConditionTrue: v1.TaintNodePIDPressure,
 		},
+		v1.NodeCPUPressure: {
+			v1.ConditionTrue: v1.TaintNodeCPUPressure,
+		},
 	}
 
 	taintKeyToNodeConditionMap = map[string]v1.NodeConditionType{

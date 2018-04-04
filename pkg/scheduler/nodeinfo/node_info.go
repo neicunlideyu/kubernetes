@@ -83,6 +83,7 @@ type NodeInfo struct {
 	// Cached conditions of node for faster lookup.
 	memoryPressureCondition v1.ConditionStatus
 	diskPressureCondition   v1.ConditionStatus
+	loadPressureCondition   v1.ConditionStatus
 	pidPressureCondition    v1.ConditionStatus
 
 	// Whenever NodeInfo changes, generation is bumped.
@@ -369,6 +370,38 @@ func (n *NodeInfo) SetTaints(newTaints []v1.Taint) {
 	n.taints = newTaints
 }
 
+// MemoryPressureCondition returns the memory pressure condition status on this node.
+func (n *NodeInfo) MemoryPressureCondition() v1.ConditionStatus {
+	if n == nil {
+		return v1.ConditionUnknown
+	}
+	return n.memoryPressureCondition
+}
+
+// DiskPressureCondition returns the disk pressure condition status on this node.
+func (n *NodeInfo) DiskPressureCondition() v1.ConditionStatus {
+	if n == nil {
+		return v1.ConditionUnknown
+	}
+	return n.diskPressureCondition
+}
+
+// LoadPressureCondition returns the load pressure condition status on this node.
+func (n *NodeInfo) LoadPressureCondition() v1.ConditionStatus {
+	if n == nil {
+		return v1.ConditionUnknown
+	}
+	return n.loadPressureCondition
+}
+
+// PIDPressureCondition returns the pid pressure condition status on this node.
+func (n *NodeInfo) PIDPressureCondition() v1.ConditionStatus {
+	if n == nil {
+		return v1.ConditionUnknown
+	}
+	return n.pidPressureCondition
+}
+
 // RequestedResource returns aggregated resource request of pods on this node.
 func (n *NodeInfo) RequestedResource() Resource {
 	if n == nil {
@@ -433,6 +466,7 @@ func (n *NodeInfo) Clone() *NodeInfo {
 		TransientInfo:           n.TransientInfo,
 		memoryPressureCondition: n.memoryPressureCondition,
 		diskPressureCondition:   n.diskPressureCondition,
+		loadPressureCondition:   n.loadPressureCondition,
 		pidPressureCondition:    n.pidPressureCondition,
 		usedPorts:               make(HostPortInfo),
 		imageStates:             n.imageStates,
@@ -670,6 +704,8 @@ func (n *NodeInfo) SetNode(node *v1.Node) error {
 			n.memoryPressureCondition = cond.Status
 		case v1.NodeDiskPressure:
 			n.diskPressureCondition = cond.Status
+		case v1.NodeCPUPressure:
+			n.loadPressureCondition = cond.Status
 		case v1.NodePIDPressure:
 			n.pidPressureCondition = cond.Status
 		default:

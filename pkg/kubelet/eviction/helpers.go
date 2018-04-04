@@ -31,9 +31,25 @@ import (
 	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
 	statsapi "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 	evictionapi "k8s.io/kubernetes/pkg/kubelet/eviction/api"
+	"k8s.io/kubernetes/pkg/kubelet/server/stats"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 	volumeutils "k8s.io/kubernetes/pkg/volume/util"
 )
+
+type Byload struct {
+	pods            []*v1.Pod
+	summaryProvider stats.SummaryProvider
+}
+
+func (loadPods Byload) Len() int {
+	return len(loadPods.pods)
+}
+func (loadPods Byload) Swap(i, j int) {
+	loadPods.pods[i], loadPods.pods[j] = loadPods.pods[j], loadPods.pods[i]
+}
+func (loadPods Byload) Less(i, j int) bool {
+	return loadPods.summaryProvider.GetLoad(loadPods.pods[i].Name) > loadPods.summaryProvider.GetLoad(loadPods.pods[j].Name)
+}
 
 const (
 	unsupportedEvictionSignal = "unsupported eviction signal %v"
@@ -80,6 +96,8 @@ func init() {
 	signalToNodeCondition[evictionapi.SignalImageFsInodesFree] = v1.NodeDiskPressure
 	signalToNodeCondition[evictionapi.SignalNodeFsInodesFree] = v1.NodeDiskPressure
 	signalToNodeCondition[evictionapi.SignalPIDAvailable] = v1.NodePIDPressure
+	signalToNodeCondition[evictionapi.SignalLoadSoftPressure] = v1.NodeCPUPressure
+	signalToNodeCondition[evictionapi.SignalLoadHardPressure] = v1.NodeCPUPressure
 
 	// map signals to resources (and vice-versa)
 	signalToResource = map[evictionapi.Signal]v1.ResourceName{}
@@ -90,6 +108,8 @@ func init() {
 	signalToResource[evictionapi.SignalNodeFsAvailable] = v1.ResourceEphemeralStorage
 	signalToResource[evictionapi.SignalNodeFsInodesFree] = resourceInodes
 	signalToResource[evictionapi.SignalPIDAvailable] = resourcePids
+	signalToResource[evictionapi.SignalLoadSoftPressure] = v1.ResourceCPU
+	signalToResource[evictionapi.SignalLoadHardPressure] = v1.ResourceCPU
 }
 
 // validSignal returns true if the signal is supported.
@@ -750,6 +770,42 @@ func getSysContainer(sysContainers []statsapi.ContainerStats, name string) (*sta
 	return nil, fmt.Errorf("system container %q not found in metrics", name)
 }
 
+func loadSort(summaryProvider stats.SummaryProvider, pods []*v1.Pod) {
+	loadPods := Byload{
+		pods:            pods,
+		summaryProvider: summaryProvider,
+	}
+	sort.Sort(loadPods)
+}
+
+func loadThresholdsMet(summaryProvider stats.SummaryProvider, thresholds []evictionapi.Threshold) (bool, bool, []evictionapi.Threshold) {
+	results := []evictionapi.Threshold{}
+	softLimit := resource.NewQuantity(int64(1000000), resource.DecimalSI)
+	hardLimit := resource.NewQuantity(int64(1000000), resource.DecimalSI)
+	var softThreshold, hardThreshold evictionapi.Threshold
+
+	for i := range thresholds {
+		threshold := thresholds[i]
+		if threshold.Signal == evictionapi.SignalLoadSoftPressure {
+			quantity := threshold.Value.Quantity.DeepCopy()
+			softLimit = &quantity
+			softThreshold = threshold
+		} else if threshold.Signal == evictionapi.SignalLoadHardPressure {
+			quantity := threshold.Value.Quantity.DeepCopy()
+			hardLimit = &quantity
+			hardThreshold = threshold
+		}
+	}
+	softOver, hardOver := summaryProvider.ThresholdsMet(softLimit.Value(), hardLimit.Value())
+	if softOver {
+		results = append(results, softThreshold)
+	}
+	if hardOver {
+		results = append(results, hardThreshold)
+	}
+	return softOver, hardOver, results
+}
+
 // thresholdsMet returns the set of thresholds that were met independent of grace period
 func thresholdsMet(thresholds []evictionapi.Threshold, observations signalObservations, enforceMinReclaim bool) []evictionapi.Threshold {
 	results := []evictionapi.Threshold{}
@@ -947,6 +1003,17 @@ func compareThresholdValue(a evictionapi.ThresholdValue, b evictionapi.Threshold
 		return false
 	}
 	return a.Percentage == b.Percentage
+}
+
+// getStarvedResources returns the set of resources that are starved based on thresholds met.
+func getStarvedResources(thresholds []evictionapi.Threshold) []v1.ResourceName {
+	results := []v1.ResourceName{}
+	for _, threshold := range thresholds {
+		if starvedResource, found := signalToResource[threshold.Signal]; found {
+			results = append(results, starvedResource)
+		}
+	}
+	return results
 }
 
 // isHardEvictionThreshold returns true if eviction should immediately occur

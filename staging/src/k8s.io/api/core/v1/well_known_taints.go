@@ -45,4 +45,8 @@ const (
 	// TaintNodePIDPressure will be added when node has pid pressure
 	// and removed when node has enough disk.
 	TaintNodePIDPressure = "node.kubernetes.io/pid-pressure"
+
+	// TaintNodeCPUPressure will be added when node has cpu pressure
+	// and removed when node has enough cpu.
+	TaintNodeCPUPressure = "node.kubernetes.io/cpu-pressure"
 )

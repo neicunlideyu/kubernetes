@@ -361,6 +361,7 @@ func TestCRIListPodCPUAndMemoryStats(t *testing.T) {
 
 	var (
 		mockCadvisor       = new(cadvisortest.Mock)
+		mockTceMetrics     = new(cadvisortest.TCEInterface)
 		mockRuntimeCache   = new(kubecontainertest.MockRuntimeCache)
 		mockPodManager     = new(kubepodtest.MockManager)
 		resourceAnalyzer   = new(fakeResourceAnalyzer)
@@ -411,6 +412,7 @@ func TestCRIListPodCPUAndMemoryStats(t *testing.T) {
 
 	provider := NewCRIStatsProvider(
 		mockCadvisor,
+		mockTceMetrics,
 		resourceAnalyzer,
 		mockPodManager,
 		mockRuntimeCache,

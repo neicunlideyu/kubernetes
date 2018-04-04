@@ -100,6 +100,9 @@ type Provider interface {
 	// GetPodByCgroupfs provides the pod that maps to the specified cgroup literal, as well
 	// as whether the pod was found.
 	GetPodByCgroupfs(cgroupfs string) (*v1.Pod, bool)
+
+	ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool)
+	GetLoad(podname string) float64
 }
 
 type handler struct {

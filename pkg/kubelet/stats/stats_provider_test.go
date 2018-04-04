@@ -108,6 +108,7 @@ func TestGetCgroupCPUAndMemoryStats(t *testing.T) {
 	)
 	var (
 		mockCadvisor     = new(cadvisortest.Mock)
+		mockTceMetrics   = new(cadvisortest.TCEInterface)
 		mockPodManager   = new(kubepodtest.MockManager)
 		mockRuntimeCache = new(kubecontainertest.MockRuntimeCache)
 
@@ -120,7 +121,7 @@ func TestGetCgroupCPUAndMemoryStats(t *testing.T) {
 
 	mockCadvisor.On("ContainerInfoV2", cgroupName, options).Return(containerInfoMap, nil)
 
-	provider := newStatsProvider(mockCadvisor, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
+	provider := newStatsProvider(mockCadvisor, mockTceMetrics, mockPodManager, mockRuntimeCache, fakeContainerStatsProvider{})
 	cs, err := provider.GetCgroupCPUAndMemoryStats(cgroupName, updateStats)
 	assert.NoError(err)
 

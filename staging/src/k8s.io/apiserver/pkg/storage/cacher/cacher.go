@@ -1384,6 +1384,7 @@ type ready struct {
 }
 
 func newReady() *ready {
+	ObserveCacheStatus(false)
 	return &ready{c: sync.NewCond(&sync.RWMutex{})}
 }
 
@@ -1407,6 +1408,7 @@ func (r *ready) check() bool {
 func (r *ready) set(ok bool) {
 	r.c.L.Lock()
 	defer r.c.L.Unlock()
+	ObserveCacheStatus(ok)
 	r.ok = ok
 	r.c.Broadcast()
 }

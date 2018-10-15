@@ -267,7 +267,7 @@ func (m *managerImpl) synchronizeLoad(diskInfoProvider DiskInfoProvider, podFunc
 	activePods := podFunc()
 
 	isSoftOver, isHardOver, loadThresholds := loadThresholdsMet(m.summaryProvider, thresholds)
-	klog.V(3).Info("isSoftOver:%v, isHardOver:%v", isSoftOver, isHardOver)
+	klog.V(3).Infof("isSoftOver:%v, isHardOver:%v", isSoftOver, isHardOver)
 
 	thresholds = loadThresholds
 	// track when a threshold was first observed

@@ -41,8 +41,9 @@ import (
 )
 
 type mockState struct {
-	assignments   state.ContainerCPUAssignments
-	defaultCPUSet cpuset.CPUSet
+	assignments    state.ContainerCPUAssignments
+	memAssignments state.ContainerCPUAssignments
+	defaultCPUSet  cpuset.CPUSet
 }
 
 func (s *mockState) GetCPUSet(podUID string, containerName string) (cpuset.CPUSet, bool) {
@@ -122,6 +123,10 @@ type mockRuntimeService struct {
 
 func (rt mockRuntimeService) UpdateContainerResources(id string, resources *runtimeapi.LinuxContainerResources) error {
 	return rt.err
+}
+
+func (rt mockRuntimeService) ExecSync(containerID string, cmd []string, timeout time.Duration) (stdout []byte, stderr []byte, err error) {
+	return nil, nil, rt.err
 }
 
 type mockPodStatusProvider struct {

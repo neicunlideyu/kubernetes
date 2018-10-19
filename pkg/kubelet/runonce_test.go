@@ -127,7 +127,8 @@ func TestRunOnce(t *testing.T) {
 	}
 	fakeMirrodPodFunc := func(*v1.Pod) (*v1.Pod, bool) { return nil, false }
 	etcHostsPathFunc := func(podUID types.UID) string { return getEtcHostsPath(kb.getPodDir(podUID)) }
-	evictionManager, evictionAdmitHandler := eviction.NewManager(kb.resourceAnalyzer, eviction.Config{}, fakeKillPodFunc, fakeMirrodPodFunc, nil, nil, kb.recorder, nodeRef, kb.clock, etcHostsPathFunc)
+	fakeKubeClient := &fake.Clientset{}
+	evictionManager, evictionAdmitHandler := eviction.NewManager(kb.resourceAnalyzer, eviction.Config{}, fakeKillPodFunc, fakeMirrodPodFunc, nil, nil, kb.recorder, nodeRef, kb.clock, etcHostsPathFunc, fakeKubeClient)
 
 	kb.evictionManager = evictionManager
 	kb.admitHandlers.AddPodAdmitHandler(evictionAdmitHandler)

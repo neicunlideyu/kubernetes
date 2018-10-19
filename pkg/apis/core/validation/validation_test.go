@@ -4252,14 +4252,21 @@ func TestValidatePorts(t *testing.T) {
 		{Name: "do-re-me", ContainerPort: 84, Protocol: "UDP"},
 		{ContainerPort: 85, Protocol: "TCP"},
 	}
-	if errs := validateContainerPorts(successCase, field.NewPath("field")); len(errs) != 0 {
+	if errs := validateContainerPorts(false, successCase, field.NewPath("field")); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
 	nonCanonicalCase := []core.ContainerPort{
 		{ContainerPort: 80, Protocol: "TCP"},
 	}
-	if errs := validateContainerPorts(nonCanonicalCase, field.NewPath("field")); len(errs) != 0 {
+	if errs := validateContainerPorts(false, nonCanonicalCase, field.NewPath("field")); len(errs) != 0 {
+		t.Errorf("expected success: %v", errs)
+	}
+
+	hostNetworkSuccessCase := []core.ContainerPort{
+		{ContainerPort: 0, Protocol: "TCP"},
+	}
+	if errs := validateContainerPorts(true, hostNetworkSuccessCase, field.NewPath("field")); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
@@ -4324,7 +4331,7 @@ func TestValidatePorts(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		errs := validateContainerPorts(v.P, field.NewPath("field"))
+		errs := validateContainerPorts(false, v.P, field.NewPath("field"))
 		if len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		}
@@ -5739,7 +5746,7 @@ func TestValidateEphemeralContainers(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		errs := validateEphemeralContainers(tc.ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers"))
+		errs := validateEphemeralContainers(false, tc.ephemeralContainers, containers, initContainers, vols, field.NewPath("ephemeralContainers"))
 
 		if len(errs) == 0 {
 			t.Errorf("for test %q, expected error but received none", tc.title)
@@ -5908,7 +5915,7 @@ func TestValidateContainers(t *testing.T) {
 		},
 		{Name: "abc-1234", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: "File", SecurityContext: fakeValidSecurityContext(true)},
 	}
-	if errs := validateContainers(successCase, false, volumeDevices, field.NewPath("field")); len(errs) != 0 {
+	if errs := validateContainers(false, successCase, false, volumeDevices, field.NewPath("field")); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
@@ -6148,7 +6155,7 @@ func TestValidateContainers(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		if errs := validateContainers(v, false, volumeDevices, field.NewPath("field")); len(errs) == 0 {
+		if errs := validateContainers(false, v, false, volumeDevices, field.NewPath("field")); len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		}
 	}
@@ -6182,7 +6189,7 @@ func TestValidateInitContainers(t *testing.T) {
 			TerminationMessagePolicy: "File",
 		},
 	}
-	if errs := validateContainers(successCase, true, volumeDevices, field.NewPath("field")); len(errs) != 0 {
+	if errs := validateContainers(false, successCase, true, volumeDevices, field.NewPath("field")); len(errs) != 0 {
 		t.Errorf("expected success: %v", errs)
 	}
 
@@ -6208,7 +6215,7 @@ func TestValidateInitContainers(t *testing.T) {
 		},
 	}
 	for k, v := range errorCases {
-		if errs := validateContainers(v, true, volumeDevices, field.NewPath("field")); len(errs) == 0 {
+		if errs := validateContainers(false, v, true, volumeDevices, field.NewPath("field")); len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		}
 	}

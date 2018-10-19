@@ -215,6 +215,10 @@ func newTestKubeletWithImageList(
 	machineInfo, _ := kubelet.cadvisor.MachineInfo()
 	kubelet.machineInfo = machineInfo
 
+	mockTceMetrics := new(cadvisortest.TCEInterface)
+	mockTceMetrics.On("Start").Return(nil)
+	kubelet.tceMetrics = mockTceMetrics
+
 	fakeMirrorClient := podtest.NewFakeMirrorClient()
 	secretManager := secret.NewSimpleSecretManager(kubelet.kubeClient)
 	kubelet.secretManager = secretManager
@@ -250,6 +254,7 @@ func newTestKubeletWithImageList(
 
 	kubelet.StatsProvider = stats.NewCadvisorStatsProvider(
 		kubelet.cadvisor,
+		kubelet.tceMetrics,
 		kubelet.resourceAnalyzer,
 		kubelet.podManager,
 		kubelet.runtimeCache,
@@ -293,7 +298,7 @@ func newTestKubeletWithImageList(
 	}
 	etcHostsPathFunc := func(podUID types.UID) string { return getEtcHostsPath(kubelet.getPodDir(podUID)) }
 	// setup eviction manager
-	evictionManager, evictionAdmitHandler := eviction.NewManager(kubelet.resourceAnalyzer, eviction.Config{}, killPodNow(kubelet.podWorkers, fakeRecorder), kubelet.podManager.GetMirrorPodByPod, kubelet.imageManager, kubelet.containerGC, fakeRecorder, nodeRef, kubelet.clock, etcHostsPathFunc)
+	evictionManager, evictionAdmitHandler := eviction.NewManager(kubelet.resourceAnalyzer, eviction.Config{}, killPodNow(kubelet.podWorkers, fakeRecorder), kubelet.podManager.GetMirrorPodByPod, kubelet.imageManager, kubelet.containerGC, fakeRecorder, nodeRef, kubelet.clock, etcHostsPathFunc, fakeKubeClient)
 
 	kubelet.evictionManager = evictionManager
 	kubelet.admitHandlers.AddPodAdmitHandler(evictionAdmitHandler)

@@ -89,6 +89,9 @@ func TestAddRemovePods(t *testing.T) {
 				StartupProbe: defaultProbe,
 			}},
 		},
+		Status: v1.PodStatus{
+			Phase: v1.PodRunning,
+		},
 	}
 
 	m := newTestManager()
@@ -157,6 +160,9 @@ func TestCleanupPods(t *testing.T) {
 				StartupProbe: defaultProbe,
 			}},
 		},
+		Status: v1.PodStatus{
+			Phase: v1.PodRunning,
+		},
 	}
 	podToKeep := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -173,6 +179,9 @@ func TestCleanupPods(t *testing.T) {
 				Name:         "prober3",
 				StartupProbe: defaultProbe,
 			}},
+		},
+		Status: v1.PodStatus{
+			Phase: v1.PodRunning,
 		},
 	}
 	m.AddPod(&podToCleanup)
@@ -212,6 +221,9 @@ func TestCleanupRepeated(t *testing.T) {
 				LivenessProbe:  defaultProbe,
 				StartupProbe:   defaultProbe,
 			}},
+		},
+		Status: v1.PodStatus{
+			Phase: v1.PodRunning,
 		},
 	}
 

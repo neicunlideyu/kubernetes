@@ -47,6 +47,7 @@ func getTestRunningStatus() v1.PodStatus {
 func getTestRunningStatusWithStarted(started bool) v1.PodStatus {
 	containerStatus := v1.ContainerStatus{
 		Name:        testContainerName,
+		Image:       "test:test",
 		ContainerID: testContainerID.String(),
 	}
 	containerStatus.State.Running = &v1.ContainerStateRunning{StartedAt: metav1.Now()}
@@ -60,12 +61,16 @@ func getTestRunningStatusWithStarted(started bool) v1.PodStatus {
 
 func getTestPod() *v1.Pod {
 	container := v1.Container{
-		Name: testContainerName,
+		Name:  testContainerName,
+		Image: "test:test",
 	}
 	pod := v1.Pod{
 		Spec: v1.PodSpec{
 			Containers:    []v1.Container{container},
 			RestartPolicy: v1.RestartPolicyNever,
+		},
+		Status: v1.PodStatus{
+			Phase: v1.PodRunning,
 		},
 	}
 	pod.Name = "testPod"

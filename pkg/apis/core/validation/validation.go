@@ -3193,11 +3193,17 @@ func ValidatePod(pod *core.Pod, opts PodValidationOptions) field.ErrorList {
 func ValidatePodSpec(spec *core.PodSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
+	// Be compatible to original none-AutoPort realization, function validateContainerPorts doesn't care isHostNetwork
+	isHostNetwork := false
+	if spec.SecurityContext != nil {
+		isHostNetwork = spec.SecurityContext.HostNetwork
+	}
+
 	vols, vErrs := ValidateVolumes(spec.Volumes, fldPath.Child("volumes"))
 	allErrs = append(allErrs, vErrs...)
-	allErrs = append(allErrs, validateContainers(spec.SecurityContext.HostNetwork, spec.Containers, false, vols, fldPath.Child("containers"))...)
-	allErrs = append(allErrs, validateInitContainers(spec.SecurityContext.HostNetwork, spec.InitContainers, spec.Containers, vols, fldPath.Child("initContainers"))...)
-	allErrs = append(allErrs, validateEphemeralContainers(spec.SecurityContext.HostNetwork, spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, fldPath.Child("ephemeralContainers"))...)
+	allErrs = append(allErrs, validateContainers(isHostNetwork, spec.Containers, false, vols, fldPath.Child("containers"))...)
+	allErrs = append(allErrs, validateInitContainers(isHostNetwork, spec.InitContainers, spec.Containers, vols, fldPath.Child("initContainers"))...)
+	allErrs = append(allErrs, validateEphemeralContainers(isHostNetwork, spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, fldPath.Child("ephemeralContainers"))...)
 	allErrs = append(allErrs, validateRestartPolicy(&spec.RestartPolicy, fldPath.Child("restartPolicy"))...)
 	allErrs = append(allErrs, validateDNSPolicy(&spec.DNSPolicy, fldPath.Child("dnsPolicy"))...)
 	allErrs = append(allErrs, unversionedvalidation.ValidateLabels(spec.NodeSelector, fldPath.Child("nodeSelector"))...)

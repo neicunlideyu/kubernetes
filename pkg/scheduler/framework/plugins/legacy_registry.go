@@ -28,6 +28,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelocality"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/labelspreading"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodelabel"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodename"
@@ -59,6 +60,9 @@ const (
 	// InterPodAffinityPriority defines the name of prioritizer function that decides which pods should or
 	// should not be placed in the same topological domain as some other pods.
 	InterPodAffinityPriority = "InterPodAffinityPriority"
+	// LabelSpreadPriority defines the name of prioritizer function that priorities nodes according to
+	// pods label.
+	LabelSpreadPriority = "LabelSpreadPriority"
 	// LeastRequestedPriority defines the name of prioritizer function that prioritize nodes by least
 	// requested utilization.
 	LeastRequestedPriority = "LeastRequestedPriority"
@@ -217,6 +221,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			TaintTolerationPriority:     1,
 			ImageLocalityPriority:       1,
 			MostGPURequestedPriority:    100,
+			LabelSpreadPriority:         1,
 		},
 
 		PredicateToConfigProducer: make(map[string]ConfigProducer),
@@ -341,6 +346,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Score = appendToPluginSet(plugins.Score, defaultpodtopologyspread.Name, &args.Weight)
 			plugins.PreScore = appendToPluginSet(plugins.PreScore, defaultpodtopologyspread.Name, nil)
+			return
+		})
+	registry.registerPriorityConfigProducer(LabelSpreadPriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, labelspreading.Name, &args.Weight)
 			return
 		})
 	registry.registerPriorityConfigProducer(TaintTolerationPriority,

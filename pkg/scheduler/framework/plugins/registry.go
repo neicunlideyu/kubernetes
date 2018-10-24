@@ -21,6 +21,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelocality"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/labelspreading"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodelabel"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodename"
@@ -69,6 +70,7 @@ func NewInTreeRegistry() framework.Registry {
 		nodevolumelimits.AzureDiskName:             nodevolumelimits.NewAzureDisk,
 		nodevolumelimits.CinderName:                nodevolumelimits.NewCinder,
 		interpodaffinity.Name:                      interpodaffinity.New,
+		labelspreading.Name:                        labelspreading.New,
 		nodelabel.Name:                             nodelabel.New,
 		serviceaffinity.Name:                       serviceaffinity.New,
 		queuesort.Name:                             queuesort.New,

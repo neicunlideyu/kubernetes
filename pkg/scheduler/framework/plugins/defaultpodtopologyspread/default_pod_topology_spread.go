@@ -53,7 +53,7 @@ const (
 
 	// When zone information is present, give 2/3 of the weighting to zone spreading, 1/3 to node spreading
 	// TODO: Any way to justify this weighting?
-	zoneWeighting float64 = 2.0 / 3.0
+	ZoneWeighting float64 = 2.0 / 3.0
 )
 
 // Name returns name of the plugin. It is used in logs, etc.
@@ -166,7 +166,7 @@ func (pl *DefaultPodTopologySpread) NormalizeScore(ctx context.Context, state *f
 				if maxCountByZone > 0 {
 					zoneScore = MaxNodeScoreFloat64 * (float64(maxCountByZone-countsByZone[zoneID]) / maxCountByZoneFloat64)
 				}
-				fScore = (fScore * (1.0 - zoneWeighting)) + (zoneWeighting * zoneScore)
+				fScore = (fScore * (1.0 - ZoneWeighting)) + (ZoneWeighting * zoneScore)
 			}
 		}
 		scores[i].Score = int64(fScore)

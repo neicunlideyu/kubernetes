@@ -209,6 +209,17 @@ func (cm *containerManagerImpl) getNodeAllocatableInternalAbsolute() v1.Resource
 
 // GetNodeAllocatableReservation returns amount of compute or storage resource that have to be reserved on this node from scheduling.
 func (cm *containerManagerImpl) GetNodeAllocatableReservation() v1.ResourceList {
+	// According to the official design, eviction reservation is added up to node allocatable reservation:
+	// >
+	// >    https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable
+	// >
+	// However, it's unreasonable and should be removed for memory for two reasons as below:
+	//     1. If we don't want to get system oom, we can just turn up the system reserved, and the system will never go to
+	//        an out-of-resource condition as memory is non-compressible.
+	//     2. Eviction reservation is a threshold for watermark of resource usage according to realtime statistics from
+	//        the cadvisor interface. It's confused to be added up to the node allocatable reservation which is non-adjustable
+	//        during running.
+
 	evictionReservation := hardEvictionReservation(cm.HardEvictionThresholds, cm.capacity)
 	result := make(v1.ResourceList)
 	for k := range cm.capacity {
@@ -219,7 +230,7 @@ func (cm *containerManagerImpl) GetNodeAllocatableReservation() v1.ResourceList 
 		if cm.NodeConfig.KubeReserved != nil {
 			value.Add(cm.NodeConfig.KubeReserved[k])
 		}
-		if evictionReservation != nil {
+		if evictionReservation != nil && k != v1.ResourceMemory {
 			value.Add(evictionReservation[k])
 		}
 		if !value.IsZero() {

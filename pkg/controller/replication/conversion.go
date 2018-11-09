@@ -178,6 +178,10 @@ func (h conversionEventHandler) OnDelete(obj interface{}) {
 	h.handler.OnDelete(rs)
 }
 
+func (h conversionEventHandler) OnUpdateResync(oldObj, newObj interface{}) {
+	h.OnUpdate(oldObj, newObj)
+}
+
 type clientsetAdapter struct {
 	clientset.Interface
 }

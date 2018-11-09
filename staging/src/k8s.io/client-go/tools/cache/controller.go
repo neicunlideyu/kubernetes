@@ -201,15 +201,17 @@ type ResourceEventHandler interface {
 	OnAdd(obj interface{})
 	OnUpdate(oldObj, newObj interface{})
 	OnDelete(obj interface{})
+	OnUpdateResync(oldObj, newObj interface{})
 }
 
 // ResourceEventHandlerFuncs is an adaptor to let you easily specify as many or
 // as few of the notification functions as you want while still implementing
 // ResourceEventHandler.
 type ResourceEventHandlerFuncs struct {
-	AddFunc    func(obj interface{})
-	UpdateFunc func(oldObj, newObj interface{})
-	DeleteFunc func(obj interface{})
+	AddFunc          func(obj interface{})
+	UpdateFunc       func(oldObj, newObj interface{})
+	DeleteFunc       func(obj interface{})
+	UpdateResyncFunc func(oldObj, newObj interface{})
 }
 
 // OnAdd calls AddFunc if it's not nil.
@@ -230,6 +232,15 @@ func (r ResourceEventHandlerFuncs) OnUpdate(oldObj, newObj interface{}) {
 func (r ResourceEventHandlerFuncs) OnDelete(obj interface{}) {
 	if r.DeleteFunc != nil {
 		r.DeleteFunc(obj)
+	}
+}
+
+// OnUpdateForResync calls UpdateResyncFunc if it's not nil, otherwise calls UpdateFunc if it's not nil.
+func (r ResourceEventHandlerFuncs) OnUpdateResync(oldObj, newObj interface{}) {
+	if r.UpdateResyncFunc != nil {
+		r.UpdateResyncFunc(oldObj, newObj)
+	} else if r.UpdateFunc != nil {
+		r.UpdateFunc(oldObj, newObj)
 	}
 }
 
@@ -272,6 +283,11 @@ func (r FilteringResourceEventHandler) OnDelete(obj interface{}) {
 		return
 	}
 	r.Handler.OnDelete(obj)
+}
+
+// OnUpdateForResync calls OnUpdate
+func (r FilteringResourceEventHandler) OnUpdateResync(oldObj, newObj interface{}) {
+	r.OnUpdate(oldObj, newObj)
 }
 
 // DeletionHandlingMetaNamespaceKeyFunc checks for

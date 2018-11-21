@@ -938,6 +938,8 @@ items:
     verbs:
     - create
     - delete
+    - patch
+    - update
   - apiGroups:
     - ""
     resources:
@@ -1038,6 +1040,12 @@ items:
     - get
     - list
     - watch
+  - apiGroups:
+    - apps
+    resources:
+    - daemonsets
+    verbs:
+    - get
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRole
   metadata:

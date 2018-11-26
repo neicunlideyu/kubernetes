@@ -850,7 +850,13 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 
 	etcHostsPathFunc := func(podUID types.UID) string { return getEtcHostsPath(klet.getPodDir(podUID)) }
 	// setup eviction manager
-	evictionManager, evictionAdmitHandler := eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, etcHostsPathFunc, kubeDeps.KubeClient)
+	var evictionManager eviction.Manager
+	var evictionAdmitHandler lifecycle.PodAdmitHandler
+	if utilfeature.DefaultFeatureGate.Enabled(features.EvictByAPI) {
+		evictionManager, evictionAdmitHandler = eviction.NewManager(klet.resourceAnalyzer, evictionConfig, evictPodNow(klet.kubeClient, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, etcHostsPathFunc, kubeDeps.KubeClient)
+	} else {
+		evictionManager, evictionAdmitHandler = eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.podManager.GetMirrorPodByPod, klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock, etcHostsPathFunc, kubeDeps.KubeClient)
+	}
 
 	klet.evictionManager = evictionManager
 	klet.admitHandlers.AddPodAdmitHandler(evictionAdmitHandler)

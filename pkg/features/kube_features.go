@@ -586,6 +586,8 @@ const (
 	//
 	// Enables usage of any object for volume data source in PVCs
 	AnyVolumeDataSource featuregate.Feature = "AnyVolumeDataSource"
+
+	EvictByAPI featuregate.Feature = "EvictByAPI"
 )
 
 func init() {
@@ -677,6 +679,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	HugePageStorageMediumSize:                      {Default: false, PreRelease: featuregate.Alpha},
 	ExternalPolicyForExternalIP:                    {Default: false, PreRelease: featuregate.GA}, // remove in 1.19
 	AnyVolumeDataSource:                            {Default: false, PreRelease: featuregate.Alpha},
+	EvictByAPI:                                     {Default: true, PreRelease: featuregate.Beta},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

@@ -107,6 +107,7 @@ func NewHollowKubelet(
 		RemoteRuntimeService: runtimeService,
 		RemoteImageService:   imageService,
 		CAdvisorInterface:    cadvisorInterface,
+		TCEMetricsInterface:  cadvisor.NewFakeTCEMetricsClient(),
 		Cloud:                nil,
 		OSInterface:          &containertest.FakeOS{},
 		ContainerManager:     containerManager,

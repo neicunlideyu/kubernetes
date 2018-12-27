@@ -18,6 +18,7 @@ package plugins
 
 import (
 	"encoding/json"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -137,6 +138,8 @@ const (
 	NoVolumeZoneConflictPred = "NoVolumeZoneConflict"
 	// EvenPodsSpreadPred defines the name of predicate EvenPodsSpread.
 	EvenPodsSpreadPred = "EvenPodsSpread"
+
+	MatchHostUniquePred = "MatchHostUnique"
 )
 
 // PredicateOrdering returns the ordering of predicate execution.
@@ -147,7 +150,7 @@ func PredicateOrdering() []string {
 		PodToleratesNodeTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
 		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
-		EvenPodsSpreadPred, MatchInterPodAffinityPred}
+		EvenPodsSpreadPred, MatchInterPodAffinityPred, MatchHostUniquePred}
 }
 
 // LegacyRegistry is used to store current state of registered predicates and priorities.
@@ -208,6 +211,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			PodToleratesNodeTaintsPred,
 			CheckVolumeBindingPred,
 			CheckNodeUnschedulablePred,
+			MatchHostUniquePred,
 		),
 
 		// Used as the default set of predicates if Policy was specified, but priorities was nil.
@@ -338,6 +342,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 				pluginConfig = append(pluginConfig, NewPluginConfig(serviceaffinity.Name, args.ServiceAffinityArgs))
 			}
 			plugins.PreFilter = appendToPluginSet(plugins.PreFilter, serviceaffinity.Name, nil)
+			return
+		})
+	registry.registerPredicateConfigProducer(PodToleratesNodeTaintsPred,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Filter = appendToPluginSet(plugins.Filter, hostunique.Name, nil)
 			return
 		})
 

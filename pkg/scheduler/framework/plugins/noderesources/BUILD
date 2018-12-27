@@ -7,6 +7,7 @@ go_library(
         "fit.go",
         "least_allocated.go",
         "most_allocated.go",
+        "most_gpu_allocated.go"
         "requested_to_capacity_ratio.go",
         "resource_allocation.go",
         "resource_limits.go",

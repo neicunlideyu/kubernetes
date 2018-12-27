@@ -83,8 +83,9 @@ func VisitContainers(podSpec *api.PodSpec, mask ContainerType, visitor Container
 }
 
 const (
-	PodAutoPortAnnotation         = "pod.tce.kubernetes.io/autoport"
-	PodHostPathTemplateAnnotation = "pod.tce.kubernetes.io/hostPathTemplate"
+	PodAutoPortAnnotation            = "pod.tce.kubernetes.io/autoport"
+	PodHostPathTemplateAnnotation    = "pod.tce.kubernetes.io/hostPathTemplate"
+	PodHostUniqueToleranceAnnotation = "pod.tce.kubernetes.io/host-unique-tolerance-count"
 )
 
 // Visitor is called with each object name, and returns true if visiting should continue

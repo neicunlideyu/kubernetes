@@ -19,6 +19,7 @@ package plugins
 import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultbinder"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelocality"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/labelspreading"
@@ -60,7 +61,6 @@ func NewInTreeRegistry() framework.Registry {
 		noderesources.LeastAllocatedName:           noderesources.NewLeastAllocated,
 		noderesources.RequestedToCapacityRatioName: noderesources.NewRequestedToCapacityRatio,
 		noderesources.ResourceLimitsName:           noderesources.NewResourceLimits,
-		noderesources.MostGPUAllocatedName:         noderesources.NewMostGPUAllocated,
 		volumebinding.Name:                         volumebinding.New,
 		volumerestrictions.Name:                    volumerestrictions.New,
 		volumezone.Name:                            volumezone.New,
@@ -70,9 +70,11 @@ func NewInTreeRegistry() framework.Registry {
 		nodevolumelimits.AzureDiskName:             nodevolumelimits.NewAzureDisk,
 		nodevolumelimits.CinderName:                nodevolumelimits.NewCinder,
 		interpodaffinity.Name:                      interpodaffinity.New,
-		labelspreading.Name:                        labelspreading.New,
 		nodelabel.Name:                             nodelabel.New,
 		serviceaffinity.Name:                       serviceaffinity.New,
+		noderesources.MostGPUAllocatedName:         noderesources.NewMostGPUAllocated,
+		labelspreading.Name:                        labelspreading.New,
+		hostunique.Name:                            hostunique.New,
 		queuesort.Name:                             queuesort.New,
 		defaultbinder.Name:                         defaultbinder.New,
 	}

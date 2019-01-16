@@ -93,6 +93,12 @@ func AddOrUpdateDaemonPodTolerations(spec *v1.PodSpec) {
 		Effect:   v1.TaintEffectNoSchedule,
 	})
 
+	v1helper.AddOrUpdateTolerationInPodSpec(spec, &v1.Toleration{
+		Key:      v1.TaintNodeCPUPressure,
+		Operator: v1.TolerationOpExists,
+		Effect:   v1.TaintEffectNoSchedule,
+	})
+
 	if spec.HostNetwork {
 		v1helper.AddOrUpdateTolerationInPodSpec(spec, &v1.Toleration{
 			Key:      v1.TaintNodeNetworkUnavailable,

@@ -114,6 +114,7 @@ var (
 		v1.TaintNodeMemoryPressure:     v1.NodeMemoryPressure,
 		v1.TaintNodeDiskPressure:       v1.NodeDiskPressure,
 		v1.TaintNodePIDPressure:        v1.NodePIDPressure,
+		v1.TaintNodeCPUPressure:        v1.NodeCPUPressure,
 	}
 )
 
@@ -1109,6 +1110,7 @@ func (nc *Controller) tryUpdateNodeHealth(node *v1.Node) (time.Duration, v1.Node
 			v1.NodeMemoryPressure,
 			v1.NodeDiskPressure,
 			v1.NodePIDPressure,
+			v1.NodeCPUPressure,
 			// We don't change 'NodeNetworkUnavailable' condition, as it's managed on a control plane level.
 			// v1.NodeNetworkUnavailable,
 		}

@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	util "k8s.io/kubectl/pkg/util/deployment"
 )
 
 const (
@@ -35,6 +36,8 @@ const (
 	localStorageWarning = "deleting Pods with local storage"
 	unmanagedFatal      = "Pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet (use --force to override)"
 	unmanagedWarning    = "deleting Pods not managed by ReplicationController, ReplicaSet, Job, DaemonSet or StatefulSet"
+	TCEDaemonFatal      = "TCE Daemon pods (use --ignore-tce-daemons to ignore)"
+	TCEDaemonWarning    = "Ignoring TCE Daemon pods"
 )
 
 type podDelete struct {
@@ -141,6 +144,7 @@ func (d *Helper) makeFilters() []podFilter {
 	return []podFilter{
 		d.skipDeletedFilter,
 		d.daemonSetFilter,
+		d.TCEDaemonFilter,
 		d.mirrorPodFilter,
 		d.localStorageFilter,
 		d.unreplicatedFilter,
@@ -187,6 +191,56 @@ func (d *Helper) daemonSetFilter(pod corev1.Pod) podDeleteStatus {
 	}
 
 	return makePodDeleteStatusWithWarning(false, daemonSetWarning)
+}
+
+func (d *Helper) getReplicaSetController(rs *appsv1.ReplicaSet) *metav1.OwnerReference {
+	return metav1.GetControllerOf(rs)
+}
+
+func (d *Helper) TCEDaemonFilter(pod corev1.Pod) podDeleteStatus {
+	// Note that we return false in cases where the pod is TCE Daemon, regardless of flags.
+	// We never delete them, the only question is whether their presence constitutes an error.
+	//
+	// The exception is for pods that are orphaned (the referencing management resource Deployment is not found).
+	// Such pods will be deleted if --force is used.
+	var (
+		rsControllerRef = metav1.GetControllerOf(&pod)
+		dpControllerRef *metav1.OwnerReference
+	)
+
+	// check for replicaSet reference.
+	if rsControllerRef == nil || rsControllerRef.Kind != "ReplicaSet" {
+		return makePodDeleteStatusOkay()
+	}
+	if rs, err := d.Client.AppsV1().ReplicaSets(pod.Namespace).Get(context.Background(), rsControllerRef.Name, metav1.GetOptions{}); err != nil {
+		// remove orphaned pods with a warning if --force is used
+		if apierrors.IsNotFound(err) && d.Force {
+			return makePodDeleteStatusWithWarning(true, err.Error())
+		}
+		return makePodDeleteStatusWithError(err.Error())
+	} else {
+		dpControllerRef = d.getReplicaSetController(rs)
+	}
+
+	// check for deployment reference.
+	if dpControllerRef == nil || dpControllerRef.Kind != "Deployment" {
+		return makePodDeleteStatusOkay()
+	}
+	if dp, err := d.Client.AppsV1().Deployments(pod.Namespace).Get(context.Background(), dpControllerRef.Name, metav1.GetOptions{}); err != nil {
+		// remove orphaned pods with a warning if --force is used
+		if apierrors.IsNotFound(err) && d.Force {
+			return makePodDeleteStatusWithWarning(true, err.Error())
+		}
+		return makePodDeleteStatusWithError(err.Error())
+	} else if !util.IsTCEDaemon(dp) {
+		return makePodDeleteStatusOkay()
+	}
+
+	if !d.IgnoreTCEDaemons {
+		return makePodDeleteStatusWithError(TCEDaemonFatal)
+	}
+
+	return makePodDeleteStatusWithWarning(false, TCEDaemonWarning)
 }
 
 func (d *Helper) mirrorPodFilter(pod corev1.Pod) podDeleteStatus {

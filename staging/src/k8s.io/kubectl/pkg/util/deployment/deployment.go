@@ -53,7 +53,23 @@ const (
 	// TimedOutReason is added in a deployment when its newest replica set fails to show any progress
 	// within the given deadline (progressDeadlineSeconds).
 	TimedOutReason = "ProgressDeadlineExceeded"
+
+	// TCEDaemonAnnotation indicates the deployment is used as a daemon.
+	TCEDaemonAnnotationKey   = "deployment.kubernetes.io/daemon-deployment"
+	TCEDaemonAnnotationValue = "true"
 )
+
+// IsTCEDaemon checks whether the deployment is a daemon.
+func IsTCEDaemon(deployment *appsv1.Deployment) bool {
+	if deployment.Annotations == nil {
+		return false
+	}
+
+	if value, ok := deployment.Annotations[TCEDaemonAnnotationKey]; !ok || value != TCEDaemonAnnotationValue {
+		return false
+	}
+	return true
+}
 
 // GetDeploymentCondition returns the condition with the provided type.
 func GetDeploymentCondition(status appsv1.DeploymentStatus, condType appsv1.DeploymentConditionType) *appsv1.DeploymentCondition {

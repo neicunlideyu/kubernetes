@@ -86,6 +86,18 @@ func (c *Cache) Dump() *internalcache.Dump {
 	return &internalcache.Dump{}
 }
 
+func (c *Cache) CacheNodesForDP(dpName string, nodeName string) error {
+	return nil
+}
+
+func (c *Cache) GetNodesForDP(dpName string) internalcache.NodesSet {
+	return nil
+}
+
+func (c *Cache) DeleteNodeForDP(dpName string, nodeName string) error {
+	return nil
+}
+
 func (c *Cache) GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo {
 	return nil
 }

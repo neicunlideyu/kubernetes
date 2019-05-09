@@ -50,6 +50,11 @@ func (c *HostUniqueChecker) Filter(ctx context.Context, cycleState *framework.Cy
 	if affinity == nil || affinity.PodAntiAffinity == nil {
 		return nil
 	}
+	// if the node does not contain any host unique pods, return true directly
+	if nodeInfo.HostUniquePodsNumber() <= 0 {
+		return nil
+	}
+
 	if failedPredicates := c.satisfiesPodsHostUnique(pod, nodeInfo, affinity); failedPredicates != nil {
 		failedPredicates := append([]string{ErrPodAffinityNotMatch.Error()}, failedPredicates.Error())
 		return framework.NewStatus(framework.Unschedulable, failedPredicates...)

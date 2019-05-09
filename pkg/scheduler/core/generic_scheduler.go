@@ -172,6 +172,43 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 	}
 	trace.Step("Running prefilter plugins done")
 
+	// check cache nodes for dp first
+	/*podNames := strings.Split(pod.Name, "-")
+	var dpName string
+	if len(podNames) == 4 {
+		dpName = pod.Namespace + "/" + podNames[0] + "-" + podNames[1]
+	}*/
+	dpName := getDpNameFromPod(pod)
+	if len(dpName) > 0 {
+		nodesSet := g.cache.GetNodesForDP(dpName)
+		if nodesSet != nil && len(nodesSet) > 0 {
+			// We can use the same metadata producer for all nodes.
+			// meta := g.predicateMetaProducer(pod, g.nodeInfoSnapshot.NodeInfoMap)
+			for nodeName := range nodesSet {
+				fits := false
+				if nodeInfo, err := g.nodeInfoSnapshot.Get(nodeName); err == nil {
+					fits, _, _ = g.podPassesFiltersOnNode(
+						ctx,
+						prof,
+						state,
+						pod,
+						nodeInfo,
+					)
+				}
+
+				// delete the node anyway
+				g.cache.DeleteNodeForDP(dpName, nodeName)
+				if fits {
+					return ScheduleResult{
+						SuggestedHost:  nodeName,
+						EvaluatedNodes: 0,
+						FeasibleNodes:  0,
+					}, nil
+				}
+			}
+		}
+	}
+
 	startPredicateEvalTime := time.Now()
 	filteredNodes, filteredNodesStatuses, err := g.findNodesThatFitPod(ctx, prof, state, pod)
 	if err != nil {
@@ -216,7 +253,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 	metrics.DeprecatedSchedulingAlgorithmPriorityEvaluationSecondsDuration.Observe(metrics.SinceInSeconds(startPriorityEvalTime))
 	metrics.DeprecatedSchedulingDuration.WithLabelValues(metrics.PriorityEvaluation).Observe(metrics.SinceInSeconds(startPriorityEvalTime))
 
-	host, err := g.selectHost(priorityList)
+	host, err := g.selectHost(pod, priorityList)
 	trace.Step("Prioritizing done")
 
 	return ScheduleResult{
@@ -230,28 +267,71 @@ func (g *genericScheduler) Extenders() []SchedulerExtender {
 	return g.extenders
 }
 
+func getDpNameFromPod(pod *v1.Pod) string {
+	var dpName string
+	podNames := strings.Split(pod.Name, "-")
+	if len(podNames) < 3 {
+		return ""
+	} else {
+		dpName = pod.Namespace + "/" + podNames[0]
+		for i := 1; i < len(podNames)-2; i++ {
+			dpName = dpName + "-" + podNames[i]
+		}
+		return dpName
+	}
+}
+
 // selectHost takes a prioritized list of nodes and then picks one
 // in a reservoir sampling manner from the nodes that had the highest score.
-func (g *genericScheduler) selectHost(nodeScoreList framework.NodeScoreList) (string, error) {
+func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeScoreList) (string, error) {
 	if len(nodeScoreList) == 0 {
 		return "", fmt.Errorf("empty priorityList")
 	}
 	maxScore := nodeScoreList[0].Score
 	selected := nodeScoreList[0].Name
+	selectedIndex := 0
 	cntOfMaxScore := 1
-	for _, ns := range nodeScoreList[1:] {
+	for index, ns := range nodeScoreList[1:] {
 		if ns.Score > maxScore {
 			maxScore = ns.Score
 			selected = ns.Name
+			selectedIndex = index
 			cntOfMaxScore = 1
 		} else if ns.Score == maxScore {
 			cntOfMaxScore++
 			if rand.Intn(cntOfMaxScore) == 0 {
 				// Replace the candidate with probability of 1/cntOfMaxScore
 				selected = ns.Name
+				selectedIndex = index
 			}
 		}
 	}
+
+	// only if pod affinity is nil, we can cache dp info, otherwise, we may break affinity rules
+	if pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAffinity != nil {
+		// do nothing here
+	} else {
+		// get dp name
+		dpName := getDpNameFromPod(pod)
+		// podNames := strings.Split(pod.Name, "-")
+		if len(dpName) > 0 {
+			//dpName := pod.Namespace + "/" + podNames[0] + "-" + podNames[1]
+			// cache 20 nodes for dp if possible
+			for i := 0; i < len(nodeScoreList); i++ {
+				if i == selectedIndex {
+					continue
+				}
+				if selectedIndex >= 20 && i == 20 {
+					break
+				}
+				if selectedIndex < 20 && i == 21 {
+					break
+				}
+				g.cache.CacheNodesForDP(dpName, nodeScoreList[i].Name)
+			}
+		}
+	}
+
 	return selected, nil
 }
 
@@ -401,7 +481,32 @@ func (g *genericScheduler) numFeasibleNodesToFind(numAllNodes int32) (numNodes i
 		}
 	}
 
-	numNodes = numAllNodes * adaptivePercentage / 100
+	if numAllNodes <= 1000 {
+		return minFeasibleNodesToFind
+	}
+
+	var actualPercentageOfNodesToScore int32
+
+	if numAllNodes > 1000 && numAllNodes <= 2000 {
+		actualPercentageOfNodesToScore = 8
+	} else if numAllNodes > 2000 && numAllNodes <= 3000 {
+		actualPercentageOfNodesToScore = 5
+	} else if numAllNodes > 3000 && numAllNodes <= 4000 {
+		actualPercentageOfNodesToScore = 4
+	} else if numAllNodes > 4000 && numAllNodes <= 5000 {
+		actualPercentageOfNodesToScore = 3
+	} else if numAllNodes > 5000 && numAllNodes <= 10000 {
+		actualPercentageOfNodesToScore = 2
+	} else if numAllNodes > 10000 {
+		actualPercentageOfNodesToScore = 1
+	}
+
+	if actualPercentageOfNodesToScore == 0 || actualPercentageOfNodesToScore > g.percentageOfNodesToScore {
+		actualPercentageOfNodesToScore = g.percentageOfNodesToScore
+	}
+
+	numNodes = numAllNodes * actualPercentageOfNodesToScore / 100
+
 	if numNodes < minFeasibleNodesToFind {
 		return minFeasibleNodesToFind
 	}
@@ -969,10 +1074,32 @@ func (g *genericScheduler) selectVictimsOnNode(
 	// check if the given pod can be scheduled.
 	podPriority := podutil.GetPodPriority(pod)
 	for _, p := range nodeInfo.Pods() {
+		// TODO: should we consider that: if the pending pod is critical pod,
+		// we can violate the CanBePreempted value and Preemption scope.
+
+		// check the preemption scope
+		if !util.PreemptionScopeEqual(pod, p) {
+			continue
+		}
+
+		// check if the pod in the specific node can be preempted
+		if !util.CanPodBePreempted(p) {
+			continue
+		}
+
 		if podutil.GetPodPriority(p) < podPriority {
 			potentialVictims = append(potentialVictims, p)
 			if err := removePod(p); err != nil {
 				return nil, 0, false
+			}
+		}
+
+		if podutil.GetPodPriority(p) == podPriority {
+			if util.HasResource(pod, util.ResourceGPU) && !util.HasResource(p, util.ResourceGPU) {
+				potentialVictims = append(potentialVictims, p)
+				if err := removePod(p); err != nil {
+					return nil, 0, false
+				}
 			}
 		}
 	}
@@ -991,11 +1118,33 @@ func (g *genericScheduler) selectVictimsOnNode(
 	}
 	var victims []*v1.Pod
 	numViolatingVictim := 0
-	sort.Slice(potentialVictims, func(i, j int) bool { return util.MoreImportantPod(potentialVictims[i], potentialVictims[j]) })
+	sort.Slice(potentialVictims, func(i, j int) bool { return util.LessImportantPod(potentialVictims[i], potentialVictims[j]) })
 	// Try to reprieve as many pods as possible. We first try to reprieve the PDB
 	// violating victims and then other non-violating ones. In both cases, we start
 	// from the highest priority victims.
+	// TODO: need to revisit this later
+	// 1. the sorting order is not suitable for violation check
+	// 2. PDB violation check need to be refactored
 	violatingVictims, nonViolatingVictims := filterPodsWithPDBViolation(potentialVictims, pdbs)
+	klog.V(6).Infof("the number of nonViolatingVictims is: %d on node %v", len(nonViolatingVictims), nodeInfo.Node().Name)
+	klog.V(6).Infof("the number of violatingVictims is: %d on node %v", len(violatingVictims), nodeInfo.Node().Name)
+	// if the number of nonViolatingVictims is 0, return directly
+	if len(nonViolatingVictims) == 0 {
+		return nil, 0, false
+	}
+
+	// we can not violate PDB, so add all violatingVictims to node info
+	for _, p := range violatingVictims {
+		addPod(p)
+	}
+	if fits, _, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo); !fits {
+		if err != nil {
+			klog.Warningf("Encountered error while selecting victims on node %v: %v", nodeInfo.Node().Name, err)
+		}
+
+		return nil, 0, false
+	}
+
 	reprievePod := func(p *v1.Pod) (bool, error) {
 		if err := addPod(p); err != nil {
 			return false, err
@@ -1010,16 +1159,16 @@ func (g *genericScheduler) selectVictimsOnNode(
 		}
 		return fits, nil
 	}
-	for _, p := range violatingVictims {
-		if fits, err := reprievePod(p); err != nil {
-			klog.Warningf("Failed to reprieve pod %q: %v", p.Name, err)
-			return nil, 0, false
-		} else if !fits {
-			numViolatingVictim++
-		}
+
+	// reverse the order
+	len := len(nonViolatingVictims)
+	nonViolatingVictimsOrder := make([]*v1.Pod, len)
+	for i := 0; i < len; i++ {
+		nonViolatingVictimsOrder[i] = nonViolatingVictims[len-1-i]
 	}
+
 	// Now we try to reprieve non-violating victims.
-	for _, p := range nonViolatingVictims {
+	for _, p := range nonViolatingVictimsOrder {
 		if _, err := reprievePod(p); err != nil {
 			klog.Warningf("Failed to reprieve pod %q: %v", p.Name, err)
 			return nil, 0, false

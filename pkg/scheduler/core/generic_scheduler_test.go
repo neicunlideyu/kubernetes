@@ -356,7 +356,7 @@ func TestSelectHost(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// increase the randomness
 			for i := 0; i < 10; i++ {
-				got, err := scheduler.selectHost(test.list)
+				got, err := scheduler.selectHost(nil, test.list)
 				if test.expectsErr {
 					if err == nil {
 						t.Error("Unexpected non-error")

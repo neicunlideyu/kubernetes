@@ -155,7 +155,7 @@ func PredicateOrdering() []string {
 		PodToleratesNodeTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
 		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
-		EvenPodsSpreadPred, MatchInterPodAffinityPred, MatchHostUniquePred}
+		EvenPodsSpreadPred, MatchHostUniquePred, MatchInterPodAffinityPred}
 }
 
 // LegacyRegistry is used to store current state of registered predicates and priorities.

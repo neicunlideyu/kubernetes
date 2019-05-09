@@ -106,7 +106,14 @@ type Cache interface {
 	// Dump produces a dump of the current cache.
 	Dump() *Dump
 
+	CacheNodesForDP(dpName string, nodeName string) error
+
+	GetNodesForDP(dpName string) NodesSet
+
+	DeleteNodeForDP(dpName string, nodeName string) error
+
 	GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo
+
 }
 
 // Dump is a dump of the cache state.

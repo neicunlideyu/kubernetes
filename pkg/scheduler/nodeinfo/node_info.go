@@ -90,6 +90,9 @@ type NodeInfo struct {
 	// This is used to avoid cloning it if the object didn't change.
 	generation int64
 
+	// hostUniquePodsNumber is the number of host unique pods
+	hostUniquePodsNumber int64
+
 	NodeShareGPUDeviceInfo
 }
 
@@ -396,6 +399,13 @@ func (n *NodeInfo) LoadPressureCondition() v1.ConditionStatus {
 	return n.loadPressureCondition
 }
 
+func (n *NodeInfo) HostUniquePodsNumber() int64 {
+	if n == nil {
+		return 0
+	}
+	return n.hostUniquePodsNumber
+}
+
 // PIDPressureCondition returns the pid pressure condition status on this node.
 func (n *NodeInfo) PIDPressureCondition() v1.ConditionStatus {
 	if n == nil {
@@ -472,7 +482,7 @@ func (n *NodeInfo) Clone() *NodeInfo {
 		pidPressureCondition:    n.pidPressureCondition,
 		usedPorts:               make(HostPortInfo),
 		imageStates:             n.imageStates,
-		generation:              n.generation,
+		hostUniquePodsNumber:    n.hostUniquePodsNumber,
 	}
 	if len(n.pods) > 0 {
 		clone.pods = append([]*v1.Pod(nil), n.pods...)
@@ -557,6 +567,11 @@ func (n *NodeInfo) AddPod(pod *v1.Pod) {
 
 	n.generation = nextGeneration()
 
+	// TODO: need fine-grained control
+	if pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAntiAffinity != nil {
+		n.hostUniquePodsNumber++
+	}
+
 	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
 		n.NodeShareGPUDeviceInfo.addPodDevices(pod)
 	}
@@ -624,6 +639,11 @@ func (n *NodeInfo) RemovePod(pod *v1.Pod) error {
 
 			n.generation = nextGeneration()
 			n.resetSlicesIfEmpty()
+
+			// TODO: need fine-grained control
+			if pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAntiAffinity != nil {
+				n.hostUniquePodsNumber--
+			}
 			return nil
 		}
 	}

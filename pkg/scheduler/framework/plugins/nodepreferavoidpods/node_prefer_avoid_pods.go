@@ -57,9 +57,9 @@ func (pl *NodePreferAvoidPods) Score(ctx context.Context, state *framework.Cycle
 
 	controllerRef := metav1.GetControllerOf(pod)
 	if controllerRef != nil {
-		// Ignore pods that are owned by other controller than ReplicationController
-		// or ReplicaSet.
-		if controllerRef.Kind != "ReplicationController" && controllerRef.Kind != "ReplicaSet" {
+		// Ignore pods that are owned by other controller than ReplicationController,
+		// ReplicaSet or Job.
+		if controllerRef.Kind != "ReplicationController" && controllerRef.Kind != "ReplicaSet" && controllerRef.Kind != "Job" {
 			controllerRef = nil
 		}
 	}

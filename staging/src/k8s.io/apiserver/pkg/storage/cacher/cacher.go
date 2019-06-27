@@ -1375,6 +1375,7 @@ func (c *cacheWatcher) process(ctx context.Context, initEvents []*watchCacheEven
 	processingTime := time.Since(startTime)
 	if processingTime > initProcessThreshold {
 		klog.V(2).Infof("processing %d initEvents of %s took %v", len(initEvents), objType, processingTime)
+		initSlowProcessingDuration.Observe(float64(processingTime.Nanoseconds() / time.Millisecond.Nanoseconds()))
 	}
 
 	defer close(c.result)

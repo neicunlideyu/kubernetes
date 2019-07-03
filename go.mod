@@ -165,7 +165,7 @@ require (
 	k8s.io/repo-infra v0.0.1-alpha.1
 	k8s.io/sample-apiserver v0.0.0
 	k8s.io/system-validators v1.0.4
-	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
+	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0
 )
@@ -563,7 +563,7 @@ replace (
 	k8s.io/sample-cli-plugin => ./staging/src/k8s.io/sample-cli-plugin
 	k8s.io/sample-controller => ./staging/src/k8s.io/sample-controller
 	k8s.io/system-validators => k8s.io/system-validators v1.0.4
-	k8s.io/utils => k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
 	modernc.org/cc => modernc.org/cc v1.0.0
 	modernc.org/golex => modernc.org/golex v1.0.0
 	modernc.org/mathutil => modernc.org/mathutil v1.0.0

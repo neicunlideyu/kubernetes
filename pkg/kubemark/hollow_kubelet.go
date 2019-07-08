@@ -208,6 +208,7 @@ func GetHollowKubeletConfig(opt *HollowKubletOptions) (*options.KubeletFlags, *k
 	c.SerializeImagePulls = true
 	c.SystemCgroups = ""
 	c.ProtectKernelDefaults = false
+	c.NodeStatusReportFrequency.Duration = time.Minute
 
 	return f, c
 }

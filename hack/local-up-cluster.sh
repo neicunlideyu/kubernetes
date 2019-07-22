@@ -782,6 +782,7 @@ function start_kubelet {
       "--eviction-pressure-transition-period=${EVICTION_PRESSURE_TRANSITION_PERIOD}"
       "--pod-manifest-path=${POD_MANIFEST_PATH}"
       "--fail-swap-on=${FAIL_SWAP_ON}"
+      --pod-infra-container-image="hub.byted.org/google_containers/pause-amd64:3.0"
       ${auth_args[@]+"${auth_args[@]}"}
       ${dns_args[@]+"${dns_args[@]}"}
       ${cni_conf_dir_args[@]+"${cni_conf_dir_args[@]}"}
@@ -798,7 +799,7 @@ function start_kubelet {
     if [ "${FAIL_SWAP_ON}" == "false" ]; then
         echo "WARNING : The kubelet is configured to not fail even if swap is enabled; production deployments should disable swap."
     fi
-    
+
     if [[ "${REUSE_CERTS}" != true ]]; then
         generate_kubelet_certs
     fi

@@ -23,11 +23,13 @@ import (
 	"strings"
 	"time"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	"google.golang.org/grpc"
 	"k8s.io/klog"
 
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util"
 	"k8s.io/kubernetes/pkg/kubelet/util/logreduction"
 	utilexec "k8s.io/utils/exec"
@@ -56,7 +58,7 @@ func NewRemoteRuntimeService(endpoint string, connectionTimeout time.Duration) (
 	ctx, cancel := context.WithTimeout(context.Background(), connectionTimeout)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithContextDialer(dialer), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)))
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithContextDialer(dialer), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)), grpc.WithUnaryInterceptor(kubetracing.UnaryClientInterceptor))
 	if err != nil {
 		klog.Errorf("Connect remote runtime %s failed: %v", addr, err)
 		return nil, err
@@ -92,11 +94,14 @@ func (r *RemoteRuntimeService) Version(apiVersion string) (*runtimeapi.VersionRe
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes should ensure
 // the sandbox is in ready state.
 func (r *RemoteRuntimeService) RunPodSandbox(config *runtimeapi.PodSandboxConfig, runtimeHandler string) (string, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.createPodSandbox"+"_"+config.Metadata.Uid, "remoteRuntime.RunPodSandbox", "remoteRuntime.RunPodSandbox"+"_"+config.Metadata.Uid)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "remoteRuntime.RunPodSandbox")
+
 	// Use 2 times longer timeout for sandbox operation (4 mins by default)
 	// TODO: Make the pod sandbox timeout configurable.
 	ctx, cancel := getContextWithTimeout(r.timeout * 2)
 	defer cancel()
-
+	ctx = kubetracing.WrapContextWithSpan(ctx, span)
 	resp, err := r.runtimeClient.RunPodSandbox(ctx, &runtimeapi.RunPodSandboxRequest{
 		Config:         config,
 		RuntimeHandler: runtimeHandler,
@@ -118,9 +123,12 @@ func (r *RemoteRuntimeService) RunPodSandbox(config *runtimeapi.PodSandboxConfig
 // StopPodSandbox stops the sandbox. If there are any running containers in the
 // sandbox, they should be forced to termination.
 func (r *RemoteRuntimeService) StopPodSandbox(podSandBoxID string) error {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.stopPodSandbox"+"_"+podSandBoxID, "remoteRuntime.StopPodSandbox", "remoteRuntime.StopPodSandbox"+"_"+podSandBoxID)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "remoteRuntime.stopPodSandbox")
+
 	ctx, cancel := getContextWithTimeout(r.timeout)
 	defer cancel()
-
+	ctx = kubetracing.WrapContextWithSpan(ctx, span)
 	_, err := r.runtimeClient.StopPodSandbox(ctx, &runtimeapi.StopPodSandboxRequest{
 		PodSandboxId: podSandBoxID,
 	})
@@ -188,9 +196,11 @@ func (r *RemoteRuntimeService) ListPodSandbox(filter *runtimeapi.PodSandboxFilte
 
 // CreateContainer creates a new container in the specified PodSandbox.
 func (r *RemoteRuntimeService) CreateContainer(podSandBoxID string, config *runtimeapi.ContainerConfig, sandboxConfig *runtimeapi.PodSandboxConfig) (string, error) {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.startContainer"+"_"+config.GetLabels()[types.KubernetesPodUIDLabel], "remoteRuntime.CreateContainer", "remoteRuntime.CreateContainer"+"_"+config.Metadata.Name)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "remoteRuntime.CreateContainer")
 	ctx, cancel := getContextWithTimeout(r.timeout)
 	defer cancel()
-
+	ctx = kubetracing.WrapContextWithSpan(ctx, span)
 	resp, err := r.runtimeClient.CreateContainer(ctx, &runtimeapi.CreateContainerRequest{
 		PodSandboxId:  podSandBoxID,
 		Config:        config,
@@ -212,9 +222,13 @@ func (r *RemoteRuntimeService) CreateContainer(podSandBoxID string, config *runt
 
 // StartContainer starts the container.
 func (r *RemoteRuntimeService) StartContainer(containerID string) error {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.startContainer"+"_"+containerID, "remoteRuntime.StartContainer", "remoteRuntime.StartContainer"+"_"+containerID)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "remoteRuntime.StartContainer")
+
 	ctx, cancel := getContextWithTimeout(r.timeout)
 	defer cancel()
 
+	ctx = kubetracing.WrapContextWithSpan(ctx, span)
 	_, err := r.runtimeClient.StartContainer(ctx, &runtimeapi.StartContainerRequest{
 		ContainerId: containerID,
 	})
@@ -228,13 +242,18 @@ func (r *RemoteRuntimeService) StartContainer(containerID string) error {
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
 func (r *RemoteRuntimeService) StopContainer(containerID string, timeout int64) error {
+	span := kubetracing.Trace(nil, kubetracing.TraceStart, "kubeGenericRuntimeManager.killContainer"+"_"+containerID, "remoteRuntime.StopContainer", "remoteRuntime.StopContainer"+"_"+containerID)
+	defer kubetracing.Trace(span, kubetracing.TraceFinish, nil, "remoteRuntime.StopContainer")
+
 	// Use timeout + default timeout (2 minutes) as timeout to leave extra time
 	// for SIGKILL container and request latency.
 	t := r.timeout + time.Duration(timeout)*time.Second
 	ctx, cancel := getContextWithTimeout(t)
 	defer cancel()
+	ctx = kubetracing.WrapContextWithSpan(ctx, span)
 
 	r.logReduction.ClearID(containerID)
+	ctx = kubetracing.WrapContextWithSpan(ctx, span)
 	_, err := r.runtimeClient.StopContainer(ctx, &runtimeapi.StopContainerRequest{
 		ContainerId: containerID,
 		Timeout:     timeout,

@@ -587,7 +587,18 @@ const (
 	// Enables usage of any object for volume data source in PVCs
 	AnyVolumeDataSource featuregate.Feature = "AnyVolumeDataSource"
 
+	// owner: @jiangfan.2017
+	// alpha: v1.8
+	// ga: 1.10
+	//
+	// Enable pods to be evicted by the eviction api instead of the local SyncPodKill of SyncPodType
 	EvictByAPI featuregate.Feature = "EvictByAPI"
+
+	// owner: @jiangfan.2017
+	// alpha: v1.10
+	//
+	// Decide thresholdmet base on dynamic thresholds provided by load metrics provider.
+	DynamicLoadEvictionThreshold featuregate.Feature = "DynamicLoadEvictionThreshold"
 )
 
 func init() {
@@ -679,7 +690,8 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	HugePageStorageMediumSize:                      {Default: false, PreRelease: featuregate.Alpha},
 	ExternalPolicyForExternalIP:                    {Default: false, PreRelease: featuregate.GA}, // remove in 1.19
 	AnyVolumeDataSource:                            {Default: false, PreRelease: featuregate.Alpha},
-	EvictByAPI:                                     {Default: true, PreRelease: featuregate.Beta},
+	EvictByAPI:                                     {Default: true, PreRelease: featuregate.GA},
+	DynamicLoadEvictionThreshold:                   {Default: false, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

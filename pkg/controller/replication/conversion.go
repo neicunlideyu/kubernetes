@@ -99,6 +99,24 @@ func (l conversionLister) GetPodReplicaSets(pod *v1.Pod) ([]*apps.ReplicaSet, er
 	return convertSlice(rcList)
 }
 
+func (l conversionLister) ReplicaSetsForTCELabel(namespace string) appslisters.ReplicaSetTCELabelLister {
+	return conversionTCELabelLister{
+		rcTCELabelLister: l.rcLister.ReplicationControllersForTCELabel(namespace),
+	}
+}
+
+type conversionTCELabelLister struct {
+	rcTCELabelLister v1listers.ReplicationControllerTCELabelLister
+}
+
+func (s conversionTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*apps.ReplicaSet, err error) {
+	rcList, err := s.rcTCELabelLister.List(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+	return convertSlice(rcList)
+}
+
 type conversionNamespaceLister struct {
 	rcLister v1listers.ReplicationControllerNamespaceLister
 }

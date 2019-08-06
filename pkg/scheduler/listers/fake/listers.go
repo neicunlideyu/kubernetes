@@ -130,6 +130,11 @@ func (f ControllerLister) ReplicationControllers(namespace string) corelisters.R
 	return nil
 }
 
+// ReplicationControllersForTCELabel returns nil
+func (f ControllerLister) ReplicationControllersForTCELabel(namespace string) corelisters.ReplicationControllerTCELabelLister {
+	return nil
+}
+
 var _ appslisters.ReplicaSetLister = &ReplicaSetLister{}
 
 // ReplicaSetLister implements ControllerLister on []extensions.ReplicaSet for test purposes.
@@ -166,6 +171,11 @@ func (f ReplicaSetLister) GetPodReplicaSets(pod *v1.Pod) (rss []*appsv1.ReplicaS
 
 // ReplicaSets returns nil
 func (f ReplicaSetLister) ReplicaSets(namespace string) appslisters.ReplicaSetNamespaceLister {
+	return nil
+}
+
+// ReplicaSetsForTCELabel returns nil
+func (f ReplicaSetLister) ReplicaSetsForTCELabel(namespace string) appslisters.ReplicaSetTCELabelLister {
 	return nil
 }
 

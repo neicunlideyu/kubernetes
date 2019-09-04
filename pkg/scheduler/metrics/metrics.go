@@ -232,6 +232,13 @@ var (
 			StabilityLevel: metrics.ALPHA,
 		}, []string{"type"})
 
+	SchedulingFailedCounter = metrics.NewCounter(
+		&metrics.CounterOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "total_scheduling_failed_counts",
+			Help:      "Total scheduling failed counts in the cluster till now",
+		})
+
 	metricsList = []metrics.Registerable{
 		scheduleAttempts,
 		DeprecatedSchedulingDuration,
@@ -252,6 +259,7 @@ var (
 		SchedulerGoroutines,
 		PermitWaitDuration,
 		CacheSize,
+		SchedulingFailedCounter,
 	}
 )
 

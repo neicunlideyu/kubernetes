@@ -374,6 +374,7 @@ func (sched *Scheduler) Run(ctx context.Context) {
 // NOTE: This function modifies "pod". "pod" should be copied before being passed.
 func (sched *Scheduler) recordSchedulingFailure(prof *profile.Profile, podInfo *framework.PodInfo, err error, reason string, message string) {
 	sched.Error(podInfo, err)
+	metrics.SchedulingFailedCounter.Inc()
 	pod := podInfo.Pod
 	prof.Recorder.Eventf(pod, nil, v1.EventTypeWarning, "FailedScheduling", "Scheduling", message)
 	if err := sched.podConditionUpdater.update(pod, &v1.PodCondition{

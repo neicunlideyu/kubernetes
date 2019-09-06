@@ -199,6 +199,13 @@ func (ds *dockerService) CreateContainer(_ context.Context, r *runtimeapi.Create
 		}
 	}
 
+	// Set pids limit for container.
+	if limit, ok := sandboxConfig.GetAnnotations()[types.ContainerPidsLimitAnnotationKey]; ok {
+		if pidsLimit, err := strconv.ParseInt(limit, 10, 64); err == nil && pidsLimit >= -1 {
+			hc.Resources.PidsLimit = &pidsLimit
+		}
+	}
+
 	createResp, createErr := ds.client.CreateContainer(createConfig)
 	if createErr != nil {
 		createResp, createErr = recoverFromCreationConflictIfNeeded(ds.client, createConfig, createErr)

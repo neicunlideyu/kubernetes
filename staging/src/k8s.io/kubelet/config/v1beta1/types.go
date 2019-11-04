@@ -19,6 +19,7 @@ package v1beta1
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 )
 
 // HairpinMode denotes how the kubelet should configure networking to handle
@@ -755,6 +756,9 @@ type KubeletConfiguration struct {
 	// Default: []
 	// +optional
 	AllowedUnsafeSysctls []string `json:"allowedUnsafeSysctls,omitempty"`
+
+	GuaranteedQOSHostPortRange netutil.PortRange `json:"guaranteedQOSHostPortRange,omitempty"`
+	HostPortRange              netutil.PortRange `json:"hostPortRange,omitempty"`
 }
 
 type KubeletAuthorizationMode string

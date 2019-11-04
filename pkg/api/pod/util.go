@@ -39,6 +39,11 @@ const (
 	InitContainers
 	// EphemeralContainers is for ephemeral containers
 	EphemeralContainers
+	PodAutoPortAnnotation             = "pod.tce.kubernetes.io/autoport"
+	PodAutoPortHighPriorityAnnotation = "pod.tce.kubernetes.io/autoportHighPriority"
+	PodHostPathTemplateAnnotation     = "pod.tce.kubernetes.io/hostPathTemplate"
+	PodHostUniqueToleranceAnnotation  = "pod.tce.kubernetes.io/host-unique-tolerance-count"
+	TCEDaemonPodAnnotationKey         = "pod.tce.kubernetes.io/tce-daemon"
 )
 
 // AllContainers specifies that all containers be visited

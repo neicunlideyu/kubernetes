@@ -170,6 +170,7 @@ var (
 		"EventRecordQPS",
 		"EvictionHard[*]",
 		"EvictionMaxPodGracePeriod",
+		"EvictionHardMaxPodGracePeriod",
 		"EvictionMinimumReclaim[*]",
 		"EvictionPressureTransitionPeriod.Duration",
 		"EvictionSoft[*]",

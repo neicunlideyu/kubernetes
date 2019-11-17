@@ -300,6 +300,7 @@ func autoConvert_v1beta1_KubeletConfiguration_To_config_KubeletConfiguration(in 
 	out.EvictionSoftGracePeriod = *(*map[string]string)(unsafe.Pointer(&in.EvictionSoftGracePeriod))
 	out.EvictionPressureTransitionPeriod = in.EvictionPressureTransitionPeriod
 	out.EvictionMaxPodGracePeriod = in.EvictionMaxPodGracePeriod
+	out.EvictionHardMaxPodGracePeriod = in.EvictionHardMaxPodGracePeriod
 	out.EvictionMinimumReclaim = *(*map[string]string)(unsafe.Pointer(&in.EvictionMinimumReclaim))
 	out.PodsPerCore = in.PodsPerCore
 	if err := v1.Convert_Pointer_bool_To_bool(&in.EnableControllerAttachDetach, &out.EnableControllerAttachDetach, s); err != nil {
@@ -436,6 +437,7 @@ func autoConvert_config_KubeletConfiguration_To_v1beta1_KubeletConfiguration(in 
 	out.EvictionSoftGracePeriod = *(*map[string]string)(unsafe.Pointer(&in.EvictionSoftGracePeriod))
 	out.EvictionPressureTransitionPeriod = in.EvictionPressureTransitionPeriod
 	out.EvictionMaxPodGracePeriod = in.EvictionMaxPodGracePeriod
+	out.EvictionHardMaxPodGracePeriod = in.EvictionHardMaxPodGracePeriod
 	out.EvictionMinimumReclaim = *(*map[string]string)(unsafe.Pointer(&in.EvictionMinimumReclaim))
 	out.PodsPerCore = in.PodsPerCore
 	if err := v1.Convert_bool_To_Pointer_bool(&in.EnableControllerAttachDetach, &out.EnableControllerAttachDetach, s); err != nil {

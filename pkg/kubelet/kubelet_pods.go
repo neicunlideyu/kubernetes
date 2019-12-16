@@ -97,7 +97,6 @@ func (kl *Kubelet) GetActivePods() []*v1.Pod {
 // makeHookBindDevices add the devices for hook-bind.
 func (kl *Kubelet) makeHookBindDevices(pod *v1.Pod, container *v1.Container) ([]kubecontainer.DeviceInfo, error) {
 	var devices []kubecontainer.DeviceInfo
-	devices = append(devices, kubecontainer.DeviceInfo{PathOnHost: "/dev/hbindev", PathInContainer: "/dev/hbindev", Permissions: "rwm"})
 	for _, envVar := range container.Env {
 		if envVar.Name == "TCE_HOST_FRAMEWORK" {
 			devices = append(devices, kubecontainer.DeviceInfo{PathOnHost: "/dev/hbindev", PathInContainer: "/dev/hbindev", Permissions: "rwm"})

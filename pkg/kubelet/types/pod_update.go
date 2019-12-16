@@ -180,7 +180,7 @@ func IsCriticalPod(pod *v1.Pod) bool {
 // Preemptable returns true if preemptor pod can preempt preemptee pod
 // if preemptee is not critical or if preemptor's priority is greater than preemptee's priority
 func Preemptable(preemptor, preemptee *v1.Pod) bool {
-	// tce-critical pods aren't allowed to be preemeetd in any case.
+	// TODO: @shaowei. for now, tce-critical pod can't be preempted by others, but it can't preempt other pods either (for safety reasons).
 	if IsTCECriticalPod(preemptee) {
 		return false
 	}

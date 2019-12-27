@@ -62,3 +62,10 @@ func (self *ResourceList) StorageEphemeral() *resource.Quantity {
 	}
 	return &resource.Quantity{}
 }
+
+func (self *ResourceList) BytedanceSocket() *resource.Quantity {
+	if val, ok := (*self)[ResourceBytedanceSocket]; ok {
+		return &val
+	}
+	return &resource.Quantity{}
+}

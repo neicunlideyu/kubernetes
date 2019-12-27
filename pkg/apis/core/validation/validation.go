@@ -3798,7 +3798,14 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 	allErrs = append(allErrs, validateOnlyAddedTolerations(newPod.Spec.Tolerations, oldPod.Spec.Tolerations, specPath.Child("tolerations"))...)
 
 	_, autoport := oldPod.ObjectMeta.Annotations[utilpod.PodAutoPortAnnotation]
-	if !autoport && !apiequality.Semantic.DeepEqual(mungedPod.Spec, oldPod.Spec) {
+	socketUpdate := false
+	for _, container := range oldPod.Spec.Containers {
+		if container.Resources.Requests.BytedanceSocket().Value() > 0 {
+			socketUpdate = true
+			break
+		}
+	}
+	if !autoport && !socketUpdate && !apiequality.Semantic.DeepEqual(mungedPod.Spec, oldPod.Spec) {
 		// This diff isn't perfect, but it's a helluva lot better an "I'm not going to tell you what the difference is".
 		//TODO: Pinpoint the specific field that causes the invalid error after we have strategic merge diff
 		specDiff := diff.ObjectDiff(mungedPod.Spec, oldPod.Spec)

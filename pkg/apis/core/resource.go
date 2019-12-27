@@ -63,3 +63,10 @@ func (rl *ResourceList) StorageEphemeral() *resource.Quantity {
 	}
 	return &resource.Quantity{}
 }
+
+func (rl *ResourceList) BytedanceSocket() *resource.Quantity {
+	if val, ok := (*rl)[ResourceBytedanceSocket]; ok {
+		return &val
+	}
+	return &resource.Quantity{}
+}

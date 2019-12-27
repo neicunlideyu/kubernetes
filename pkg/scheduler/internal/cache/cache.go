@@ -765,3 +765,12 @@ func (cache *schedulerCache) updateMetrics() {
 	metrics.CacheSize.WithLabelValues("pods").Set(float64(len(cache.podStates)))
 	metrics.CacheSize.WithLabelValues("nodes").Set(float64(len(cache.nodes)))
 }
+
+func (cache *schedulerCache) GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo {
+	var nodeInfoItem *nodeInfoListItem
+	var ok bool
+	if nodeInfoItem, ok = cache.nodes[nodeName]; !ok {
+		return nil
+	}
+	return nodeInfoItem.info
+}

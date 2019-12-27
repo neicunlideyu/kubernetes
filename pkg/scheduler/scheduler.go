@@ -25,6 +25,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -62,6 +63,10 @@ const (
 // TODO (ahmad-diaa): Remove type and replace it with scheduler methods
 type podConditionUpdater interface {
 	update(pod *v1.Pod, podCondition *v1.PodCondition) error
+}
+
+type podUpdater interface {
+	update(pod *v1.Pod) error
 }
 
 // PodPreemptor has methods needed to delete a pod and to update 'NominatedPod'
@@ -111,6 +116,8 @@ type Scheduler struct {
 
 	// SchedulingQueue holds pods to be scheduled
 	SchedulingQueue internalqueue.SchedulingQueue
+
+	podUpdater podUpdater
 
 	// Profiles are the scheduling profiles.
 	Profiles profile.Map
@@ -359,6 +366,60 @@ func initPolicyFromConfigMap(client clientset.Interface, policyRef *schedulerapi
 	return nil
 }
 
+func (sched *Scheduler) AddCPUMemoryResource(pod *v1.Pod, dest string) (error, bool) {
+	var shouldUpdate bool
+	node := sched.SchedulerCache.GetNodeInfo(dest).Node()
+	if node == nil {
+		return fmt.Errorf("selected node is missing in cache: %s", dest), shouldUpdate
+	}
+	nodeCap := node.Status.Capacity
+	nodeAlloc := node.Status.Allocatable
+	socketCap := nodeCap[v1.ResourceBytedanceSocket]
+	socketAlloc := nodeAlloc[v1.ResourceBytedanceSocket]
+	cpuCap := nodeCap[v1.ResourceCPU]
+	cpuAlloc := nodeAlloc[v1.ResourceCPU]
+	memCap := nodeCap[v1.ResourceMemory]
+	memAlloc := nodeAlloc[v1.ResourceMemory]
+	for i, container := range pod.Spec.Containers {
+		socketReq := container.Resources.Requests[v1.ResourceBytedanceSocket]
+		if socketReq.Value() == 0 {
+			continue
+		}
+		if socketCap.Value() == 0 || socketAlloc.Value() == 0 {
+			return fmt.Errorf("the socket capacity or allocatable is 0 in node %s", dest), shouldUpdate
+		}
+		cpuReq := container.Resources.Requests[v1.ResourceCPU]
+		if cpuReq.Value() == 0 {
+			// Every numa minus cpu reserved in each numa and minus extra one cpu in each numa
+			cpuReqVal := cpuAlloc.Value()*socketReq.Value()/socketAlloc.Value() - socketReq.Value()
+			pod.Spec.Containers[i].Resources.Requests[v1.ResourceCPU] = *resource.NewQuantity(cpuReqVal, resource.DecimalSI)
+			shouldUpdate = true
+		}
+		cpuLmt := container.Resources.Limits[v1.ResourceCPU]
+		if cpuLmt.Value() == 0 {
+			cpuLmtVal := cpuCap.Value() * socketReq.Value() / socketCap.Value()
+			pod.Spec.Containers[i].Resources.Limits[v1.ResourceCPU] = *resource.NewQuantity(cpuLmtVal, resource.DecimalSI)
+			shouldUpdate = true
+		}
+		memReq := container.Resources.Requests[v1.ResourceMemory]
+		if memReq.Value() == 0 {
+			// Every numa minua memory reserved in each numa and minus extra 1 Gi in each numa
+			extraMemReserved := resource.NewQuantity(1*1024*1024*1024, resource.BinarySI)
+			memReqVal := memAlloc.Value()*socketReq.Value()/socketAlloc.Value() - socketReq.Value()*extraMemReserved.Value()
+			pod.Spec.Containers[i].Resources.Requests[v1.ResourceMemory] = *resource.NewQuantity(memReqVal, resource.BinarySI)
+			shouldUpdate = true
+		}
+		memLmt := container.Resources.Limits[v1.ResourceMemory]
+		if memLmt.Value() == 0 {
+			memLmtVal := memCap.Value() * socketReq.Value() / socketCap.Value()
+			pod.Spec.Containers[i].Resources.Limits[v1.ResourceMemory] = *resource.NewQuantity(memLmtVal, resource.BinarySI)
+			shouldUpdate = true
+		}
+	}
+
+	return nil, shouldUpdate
+}
+
 // Run begins watching and scheduling. It waits for cache to be synced, then starts scheduling and blocked until the context is done.
 func (sched *Scheduler) Run(ctx context.Context) {
 	if !cache.WaitForCacheSync(ctx.Done(), sched.scheduledPodsHasSynced) {
@@ -604,6 +665,20 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		return
 	}
 	metrics.SchedulingAlgorithmLatency.Observe(metrics.SinceInSeconds(start))
+	podToUpdate := pod.DeepCopy()
+	addResourceErr, shouldUpdate := sched.AddCPUMemoryResource(podToUpdate, scheduleResult.SuggestedHost)
+	if addResourceErr != nil {
+		klog.Errorf("Failed to schedule: %v, fail to add cpu/memory resource for socket policy.", podToUpdate)
+		sched.Error(podInfo, addResourceErr)
+		prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", addResourceErr.Error())
+		sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
+			Type:   v1.PodScheduled,
+			Status: v1.ConditionFalse,
+			Reason: "Unschedulable",
+		})
+		return
+	}
+
 	// Tell the cache to assume that a pod now is running on a given node, even though it hasn't been bound yet.
 	// This allows us to keep scheduling without waiting on binding to occur.
 	assumedPodInfo := podInfo.DeepCopy()
@@ -690,6 +765,25 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 			prof.RunUnreservePlugins(bindingCycleCtx, state, assumedPod, scheduleResult.SuggestedHost)
 			sched.recordSchedulingFailure(prof, assumedPodInfo, waitOnPermitStatus.AsError(), reason, waitOnPermitStatus.Message())
 			return
+		}
+
+		if shouldUpdate {
+			klog.V(4).Infof("Starting updating cpu/memory resource for the pod: %s", podToUpdate.Name)
+			errUpdate := sched.podUpdater.update(podToUpdate)
+			if errUpdate != nil {
+				klog.Errorf("Failed to Update pod: %v/%v %v", pod.Namespace, pod.Name, errUpdate)
+				if err := sched.SchedulerCache.ForgetPod(assumedPod); err != nil {
+					klog.Errorf("scheduler cache ForgetPod failed 1: %v", err)
+				}
+				sched.Error(podInfo, errUpdate)
+				prof.Recorder.Eventf(pod, nil, v1.EventTypeNormal, "FailedScheduling", "Update failed: %v", errUpdate.Error())
+				sched.podConditionUpdater.update(pod, &v1.PodCondition{
+					Type:   v1.PodScheduled,
+					Status: v1.ConditionFalse,
+					Reason: "BindingRejected",
+				})
+				return
+			}
 		}
 
 		// Bind volumes first before Pod
@@ -780,6 +874,16 @@ func (p *podConditionUpdaterImpl) update(pod *v1.Pod, condition *v1.PodCondition
 		return err
 	}
 	return nil
+}
+
+type podUpdaterImpl struct {
+	Client clientset.Interface
+}
+
+func (p *podUpdaterImpl) update(pod *v1.Pod) error {
+	klog.V(2).Infof("Updating pod %s/%s", pod.Namespace, pod.Name)
+	_, err := p.Client.CoreV1().Pods(pod.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+	return err
 }
 
 type podPreemptorImpl struct {

@@ -396,9 +396,6 @@ func evictPodNow(kubeClient clientset.Interface, recorder record.EventRecorder) 
 	}
 
 	return func(pod *v1.Pod, status v1.PodStatus, gracePeriodOverride *int64) error {
-		doneCh := make(chan bool, 1)
-		errCh := make(chan error, 1)
-
 		// determine the grace period to use when evicting the pod
 		gracePeriodSeconds := int64(30)
 		if gracePeriodOverride != nil {
@@ -415,16 +412,23 @@ func evictPodNow(kubeClient clientset.Interface, recorder record.EventRecorder) 
 			timeout = minTimeout
 		}
 		timeoutDuration := time.Duration(timeout) * time.Second
+		timeoutTick := time.NewTimer(timeoutDuration)
 
-		go func(pod *v1.Pod, doneCh chan bool, errCh chan error) {
-			var err error
-			for {
-				err = evictPod(pod, &gracePeriodSeconds, policyGroupVersion, evictionKind, kubeClient)
+		for {
+			success := false
+
+			select {
+			case <-timeoutTick.C:
+				recorder.Eventf(pod, v1.EventTypeWarning, events.ExceededGracePeriod, "Evict requeset failed to send within timeout.")
+				return fmt.Errorf("eviction request did not complete within %v", timeoutDuration)
+			default:
+				err := evictPod(pod, &gracePeriodSeconds, policyGroupVersion, evictionKind, kubeClient)
 				if err == nil {
+					success = true
 					break
 				} else if apierrors.IsNotFound(err) {
-					doneCh <- true
-					return
+					success = true
+					break
 				} else if apierrors.IsTooManyRequests(err) {
 					delay, retry := apierrors.SuggestsClientDelay(err)
 					if !retry {
@@ -432,29 +436,22 @@ func evictPodNow(kubeClient clientset.Interface, recorder record.EventRecorder) 
 					}
 					time.Sleep(time.Duration(delay) * time.Second)
 				} else {
-					errCh <- fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
-					return
+					return fmt.Errorf("error when evicting pod %q: %v", pod.Name, err)
 				}
 			}
-			podArray := []*v1.Pod{pod}
-			_, err = waitForDelete(podArray, interval, timeoutDuration, getPodFn)
-			if err == nil {
-				doneCh <- true
-			} else {
-				errCh <- fmt.Errorf("error when waiting for pod %q terminating: %v", pod.Name, err)
-			}
-		}(pod, doneCh, errCh)
 
-		for {
-			select {
-			case err := <-errCh:
-				return err
-			case <-doneCh:
-				return nil
-			case <-time.After(timeoutDuration):
-				recorder.Eventf(pod, v1.EventTypeWarning, events.ExceededGracePeriod, "Container runtime did not kill the pod within specified grace period.")
-				return fmt.Errorf("eviction did not complete within %v", timeoutDuration)
+			if success {
+				break
 			}
 		}
+
+		podArray := []*v1.Pod{pod}
+		_, err := waitForDelete(podArray, interval, timeoutDuration, getPodFn)
+		if err != nil {
+			recorder.Eventf(pod, v1.EventTypeWarning, events.ExceededGracePeriod, "Container runtime did not kill the pod within specified grace period.")
+			return fmt.Errorf("container deletion did not complete within %v", timeoutDuration)
+		}
+
+		return nil
 	}
 }

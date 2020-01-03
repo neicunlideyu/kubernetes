@@ -436,6 +436,8 @@ func (m *manager) updateStatusInternal(pod *v1.Pod, status v1.PodStatus, forceUp
 		return false // No new status.
 	}
 
+	status.NominatedNodeName = oldStatus.NominatedNodeName
+
 	newStatus := versionedPodStatus{
 		status:       status,
 		version:      cachedStatus.version + 1,

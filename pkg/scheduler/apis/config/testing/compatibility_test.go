@@ -1350,6 +1350,7 @@ func TestCompatibility_v1_Scheduler(t *testing.T) {
 			sched, err := scheduler.New(
 				client,
 				informerFactory,
+				nil,
 				informerFactory.Core().V1().Pods(),
 				recorderFactory,
 				make(chan struct{}),
@@ -1514,6 +1515,7 @@ func TestAlgorithmProviderCompatibility(t *testing.T) {
 			sched, err := scheduler.New(
 				client,
 				informerFactory,
+				nil,
 				informerFactory.Core().V1().Pods(),
 				recorderFactory,
 				make(chan struct{}),
@@ -1773,6 +1775,7 @@ func TestPluginsConfigurationCompatibility(t *testing.T) {
 			sched, err := scheduler.New(
 				client,
 				informerFactory,
+				nil,
 				informerFactory.Core().V1().Pods(),
 				recorderFactory,
 				make(chan struct{}),

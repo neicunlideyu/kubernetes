@@ -206,6 +206,7 @@ func TestSchedulerCreation(t *testing.T) {
 			defer close(stopCh)
 			s, err := New(client,
 				informerFactory,
+				nil,
 				NewPodInformer(client, 0),
 				profile.NewRecorderFactory(eventBroadcaster),
 				stopCh,
@@ -443,6 +444,7 @@ func TestSchedulerMultipleProfilesScheduling(t *testing.T) {
 	informerFactory := informers.NewSharedInformerFactory(client, 0)
 	sched, err := New(client,
 		informerFactory,
+		nil,
 		informerFactory.Core().V1().Pods(),
 		profile.NewRecorderFactory(broadcaster),
 		ctx.Done(),
@@ -813,6 +815,7 @@ func setupTestScheduler(queuedPodStore *clientcache.FIFO, scache internalcache.C
 
 	algo := core.NewGenericScheduler(
 		scache,
+		nil,
 		internalqueue.NewSchedulingQueue(nil),
 		internalcache.NewEmptySnapshot(),
 		[]core.SchedulerExtender{},
@@ -1168,6 +1171,7 @@ func TestSchedulerBinding(t *testing.T) {
 			scache := internalcache.New(100*time.Millisecond, stop)
 			algo := core.NewGenericScheduler(
 				scache,
+				nil,
 				nil,
 				nil,
 				test.extenders,

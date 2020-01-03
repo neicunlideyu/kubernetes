@@ -91,6 +91,7 @@ func setupScheduler(
 	sched, err := scheduler.New(
 		cs,
 		informerFactory,
+		nil,
 		informerFactory.Core().V1().Pods(),
 		profile.NewRecorderFactory(eventBroadcaster),
 		ctx.Done(),

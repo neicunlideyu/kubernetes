@@ -270,6 +270,7 @@ priorities: []
 
 		sched, err := scheduler.New(clientSet,
 			informerFactory,
+			nil,
 			scheduler.NewPodInformer(clientSet, 0),
 			profile.NewRecorderFactory(eventBroadcaster),
 			nil,
@@ -316,6 +317,7 @@ func TestSchedulerCreationFromNonExistentConfigMap(t *testing.T) {
 
 	_, err := scheduler.New(clientSet,
 		informerFactory,
+		nil,
 		scheduler.NewPodInformer(clientSet, 0),
 		profile.NewRecorderFactory(eventBroadcaster),
 		nil,

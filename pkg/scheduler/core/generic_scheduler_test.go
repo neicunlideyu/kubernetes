@@ -813,6 +813,7 @@ func TestGenericScheduler(t *testing.T) {
 
 			scheduler := NewGenericScheduler(
 				cache,
+				nil,
 				internalqueue.NewSchedulingQueue(nil),
 				snapshot,
 				[]SchedulerExtender{},
@@ -844,6 +845,7 @@ func makeScheduler(nodes []*v1.Node) *genericScheduler {
 
 	s := NewGenericScheduler(
 		cache,
+		nil,
 		internalqueue.NewSchedulingQueue(nil),
 		emptySnapshot,
 		nil, nil, nil, false,
@@ -1134,6 +1136,7 @@ func TestZeroRequest(t *testing.T) {
 			prof := &profile.Profile{Framework: fwk}
 
 			scheduler := NewGenericScheduler(
+				nil,
 				nil,
 				nil,
 				emptySnapshot,
@@ -1614,6 +1617,7 @@ func TestSelectNodesForPreemption(t *testing.T) {
 			prof := &profile.Profile{Framework: fwk}
 
 			scheduler := NewGenericScheduler(
+				nil,
 				nil,
 				internalqueue.NewSchedulingQueue(nil),
 				snapshot,
@@ -2412,6 +2416,7 @@ func TestPreempt(t *testing.T) {
 
 			scheduler := NewGenericScheduler(
 				cache,
+				nil,
 				internalqueue.NewSchedulingQueue(nil),
 				snapshot,
 				extenders,

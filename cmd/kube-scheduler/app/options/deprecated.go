@@ -70,6 +70,7 @@ func (o *DeprecatedOptions) AddFlags(fs *pflag.FlagSet, cfg *kubeschedulerconfig
 	fs.StringVar(&o.SchedulerName, "scheduler-name", o.SchedulerName, "DEPRECATED: name of the scheduler, used to select which pods will be processed by this scheduler, based on pod's \"spec.schedulerName\".")
 	// MarkDeprecated hides the flag from the help. We don't want that:
 	// fs.MarkDeprecated("hard-pod-affinity-symmetric-weight", "This option was moved to the policy configuration file")
+	fs.Float64Var(&cfg.NodePackageResourceMatchFactor, "node-package-factor", cfg.NodePackageResourceMatchFactor, "DEPRECATED: node package factor to help decide if pods suit nodes.")
 }
 
 // Validate validates the deprecated scheduler options.

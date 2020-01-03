@@ -26,6 +26,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodelabel"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodename"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodepackage"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeports"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodepreferavoidpods"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
@@ -77,6 +78,10 @@ func NewInTreeRegistry() framework.Registry {
 		noderesources.ShareGPUName:                 noderesources.NewShareGPU,
 		labelspreading.Name:                        labelspreading.New,
 		hostunique.Name:                            hostunique.New,
+		nodepackage.Name:                           nodepackage.New,
+		nodepackage.NodePackageCPUMatch:            nodepackage.NewNodePackageCPUMatch,
+		nodepackage.NodePackageMemMatch:            nodepackage.NewNodePackageMemMatch,
+		nodepackage.NodePackageNBWMatch:            nodepackage.NewNodePackageNBWMatcher,
 		queuesort.Name:                             queuesort.New,
 		defaultbinder.Name:                         defaultbinder.New,
 	}

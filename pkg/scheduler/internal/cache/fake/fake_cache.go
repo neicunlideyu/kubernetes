@@ -20,6 +20,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+
+	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
 )
 
 // Cache is used for testing
@@ -95,6 +97,54 @@ func (c *Cache) GetNodesForDP(dpName string) internalcache.NodesSet {
 }
 
 func (c *Cache) DeleteNodeForDP(dpName string, nodeName string) error {
+	return nil
+}
+
+func (c *Cache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo) []string {
+	return nil
+}
+
+func (c *Cache) AddRefinedResourceNode(refinedNodeResource *nnrv1alpha1.RefinedNodeResource) error {
+	return nil
+}
+
+func (c *Cache) UpdateRefinedResourceNode(oldRefinedNodeResource, newRefinedNodeResource *nnrv1alpha1.RefinedNodeResource) error {
+	return nil
+}
+
+func (c *Cache) DeleteRefinedResourceNode(refinedNodeResource *nnrv1alpha1.RefinedNodeResource) error {
+	return nil
+}
+
+func (c *Cache) CachePreemptor(preemptor *v1.Pod) error {
+	return nil
+}
+
+func (c *Cache) PreemptorStillHaveChance(pod *v1.Pod) bool {
+	return false
+}
+
+func (c *Cache) ReduceOneChanceForPreemptor(preemptor *v1.Pod) error {
+	return nil
+}
+
+func (c *Cache) DeletePreemptor(preemptor *v1.Pod) error {
+	return nil
+}
+
+func (c *Cache) DeletePreemptorFromCacheOnly(preemptor *v1.Pod) error {
+	return nil
+}
+
+func (c *Cache) IsVictims(deployName string) bool {
+	return false
+}
+
+func (c *Cache) AddOneVictim(deployName string) error {
+	return nil
+}
+
+func (c *Cache) SubtractOneVictim(deployName string) error {
 	return nil
 }
 

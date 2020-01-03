@@ -49,6 +49,8 @@ import (
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
+
+	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -143,6 +145,8 @@ type schedulerOptions struct {
 	frameworkOutOfTreeRegistry framework.Registry
 	profiles                   []schedulerapi.KubeSchedulerProfile
 	extenders                  []schedulerapi.Extender
+
+	nodePackageResourceMatchFactor float64
 }
 
 // Option configures a Scheduler
@@ -174,6 +178,12 @@ func WithPreemptionDisabled(disablePreemption bool) Option {
 func WithPercentageOfNodesToScore(percentageOfNodesToScore int32) Option {
 	return func(o *schedulerOptions) {
 		o.percentageOfNodesToScore = percentageOfNodesToScore
+	}
+}
+
+func WithNodePackageResourceMatchFactor(nodePackageResourceMatchFactor float64) Option {
+	return func(o *schedulerOptions) {
+		o.nodePackageResourceMatchFactor = nodePackageResourceMatchFactor
 	}
 }
 
@@ -221,16 +231,18 @@ var defaultSchedulerOptions = schedulerOptions{
 	schedulerAlgorithmSource: schedulerapi.SchedulerAlgorithmSource{
 		Provider: defaultAlgorithmSourceProviderName(),
 	},
-	disablePreemption:        false,
-	percentageOfNodesToScore: schedulerapi.DefaultPercentageOfNodesToScore,
-	bindTimeoutSeconds:       BindTimeoutSeconds,
-	podInitialBackoffSeconds: int64(internalqueue.DefaultPodInitialBackoffDuration.Seconds()),
-	podMaxBackoffSeconds:     int64(internalqueue.DefaultPodMaxBackoffDuration.Seconds()),
+	disablePreemption:              false,
+	percentageOfNodesToScore:       schedulerapi.DefaultPercentageOfNodesToScore,
+	bindTimeoutSeconds:             BindTimeoutSeconds,
+	podInitialBackoffSeconds:       int64(internalqueue.DefaultPodInitialBackoffDuration.Seconds()),
+	podMaxBackoffSeconds:           int64(internalqueue.DefaultPodMaxBackoffDuration.Seconds()),
+	nodePackageResourceMatchFactor: schedulerapi.DefaultNodePackageFactor,
 }
 
 // New returns a Scheduler
 func New(client clientset.Interface,
 	informerFactory informers.SharedInformerFactory,
+	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer,
 	podInformer coreinformers.PodInformer,
 	recorderFactory profile.RecorderFactory,
 	stopCh <-chan struct{},
@@ -265,23 +277,25 @@ func New(client clientset.Interface,
 	snapshot := internalcache.NewEmptySnapshot()
 
 	configurator := &Configurator{
-		client:                   client,
-		recorderFactory:          recorderFactory,
-		informerFactory:          informerFactory,
-		podInformer:              podInformer,
-		volumeBinder:             volumeBinder,
-		schedulerCache:           schedulerCache,
-		StopEverything:           stopEverything,
-		disablePreemption:        options.disablePreemption,
-		percentageOfNodesToScore: options.percentageOfNodesToScore,
-		bindTimeoutSeconds:       options.bindTimeoutSeconds,
-		podInitialBackoffSeconds: options.podInitialBackoffSeconds,
-		podMaxBackoffSeconds:     options.podMaxBackoffSeconds,
-		enableNonPreempting:      utilfeature.DefaultFeatureGate.Enabled(kubefeatures.NonPreemptingPriority),
-		profiles:                 append([]schedulerapi.KubeSchedulerProfile(nil), options.profiles...),
-		registry:                 registry,
-		nodeInfoSnapshot:         snapshot,
-		extenders:                options.extenders,
+		client:                         client,
+		refinedNodeResourceInformer:    refinedNodeResourceInformer,
+		recorderFactory:                recorderFactory,
+		informerFactory:                informerFactory,
+		podInformer:                    podInformer,
+		volumeBinder:                   volumeBinder,
+		schedulerCache:                 schedulerCache,
+		StopEverything:                 stopEverything,
+		disablePreemption:              options.disablePreemption,
+		percentageOfNodesToScore:       options.percentageOfNodesToScore,
+		bindTimeoutSeconds:             options.bindTimeoutSeconds,
+		podInitialBackoffSeconds:       options.podInitialBackoffSeconds,
+		podMaxBackoffSeconds:           options.podMaxBackoffSeconds,
+		enableNonPreempting:            utilfeature.DefaultFeatureGate.Enabled(kubefeatures.NonPreemptingPriority),
+		profiles:                       append([]schedulerapi.KubeSchedulerProfile(nil), options.profiles...),
+		registry:                       registry,
+		nodeInfoSnapshot:               snapshot,
+		extenders:                      options.extenders,
+		nodePackageResourceMatchFactor: options.nodePackageResourceMatchFactor,
 	}
 
 	metrics.Register()
@@ -328,7 +342,7 @@ func New(client clientset.Interface,
 	sched.podPreemptor = &podPreemptorImpl{client}
 	sched.scheduledPodsHasSynced = podInformer.Informer().HasSynced
 
-	addAllEventHandlers(sched, informerFactory, podInformer)
+	addAllEventHandlers(sched, informerFactory, podInformer, refinedNodeResourceInformer)
 	return sched, nil
 }
 
@@ -481,6 +495,13 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 	}
 
 	node, victims, nominatedPodsToClear, err := sched.Algorithm.Preempt(ctx, prof, state, preemptor, scheduleErr)
+	// TODO: revisit this to see if it is ok to return directly here
+	// we will never remove NominatedNodeName in pod status if it is not cached
+	if len(preemptor.Status.NominatedNodeName) > 0 || len(preemptor.Spec.NodeName) > 0 {
+		// if the nominated node is set, return directly
+		return "", nil
+	}
+
 	if err != nil {
 		klog.Errorf("Error preempting victims to make room for %v/%v: %v", preemptor.Namespace, preemptor.Name, err)
 		return "", err
@@ -505,6 +526,11 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 			return "", err
 		}
 
+		// cache preemptor in scheduler cache
+		preemptorCopy := preemptor.DeepCopy()
+		preemptorCopy.Status.NominatedNodeName = nodeName
+		sched.SchedulerCache.CachePreemptor(preemptorCopy)
+
 		for _, victim := range victims {
 			if err := sched.podPreemptor.deletePod(victim); err != nil {
 				klog.Errorf("Error preempting pod %v/%v: %v", victim.Namespace, victim.Name, err)
@@ -516,6 +542,11 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 			}
 			prof.Recorder.Eventf(victim, preemptor, v1.EventTypeNormal, "Preempted", "Preempting", "Preempted by %v/%v on node %v", preemptor.Namespace, preemptor.Name, nodeName)
 
+			// cache victims for deployment
+			deployName := util.GetDeployNameFromPod(victim)
+			if len(deployName) > 0 {
+				sched.SchedulerCache.AddOneVictim(deployName)
+			}
 		}
 		metrics.PreemptionVictims.Observe(float64(len(victims)))
 	} else {
@@ -632,6 +663,10 @@ func (sched *Scheduler) finishBinding(prof *profile.Profile, assumed *v1.Pod, ta
 	metrics.BindingLatency.Observe(metrics.SinceInSeconds(start))
 	metrics.DeprecatedSchedulingDuration.WithLabelValues(metrics.Binding).Observe(metrics.SinceInSeconds(start))
 	prof.Recorder.Eventf(assumed, nil, v1.EventTypeNormal, "Scheduled", "Binding", "Successfully assigned %v/%v to %v", assumed.Namespace, assumed.Name, targetNode)
+	if len(assumed.Status.NominatedNodeName) > 0 {
+		preemptionMessage := "pod is scheduled successfully because of preemption"
+		prof.Recorder.Eventf(assumed, nil, v1.EventTypeNormal, "ScheduledDueToPreemption", "", preemptionMessage)
+	}
 }
 
 // scheduleOne does the entire scheduling workflow for a single pod.  It is serialized on the scheduling algorithm's host fitting.
@@ -650,6 +685,15 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		return
 	}
 	if sched.skipPodSchedule(prof, pod) {
+		return
+	}
+
+	if pod.Annotations != nil && len(pod.Annotations[util.SocketToCpuKey]) > 0 {
+		klog.V(3).Infof("Pod: %v/%v is already bound because the sockettocpu annotation is set, skip scheduling", pod.Namespace, pod.Name)
+		return
+	}
+	if len(pod.Spec.NodeName) > 0 {
+		klog.V(3).Infof("Pod: %v/%v is already bound, skip scheduling", pod.Namespace, pod.Name)
 		return
 	}
 
@@ -672,8 +716,36 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 				klog.V(3).Infof("Pod priority feature is not enabled or preemption is disabled by scheduler configuration." +
 					" No preemption is performed.")
 			} else {
+				/*
+					// if pod is victim, do not perform preemption for it, let SRE platform add machines directly
+					deployName := util.GetDeployNameFromPod(pod)
+					if len(deployName) > 0 && sched.config.SchedulerCache.IsVictims(deployName) {
+						// pod is victim, do not perform preemption for it
+						// send out event and let SRE platform add machines
+
+						// TODO: need to revisit this later
+						// the pod sending out the SRE event may be placed to existing machine(there may be some pods being killed),
+						// the machine added by SRE platform may be consumed by other pods
+						// do we need to send out event continuously ?
+						// if so, what action should SRE platform take ?
+						// SRE may add machines when having gathered 10 events ?
+						podC := pod.DeepCopy()
+						message := "SRE Platform Notice: victim: " + podC.Name + ", deployment name: " + deployName + ", can not be scheduled, please add machines for it. "
+						message = message + "Refined resources requirement: " + util.PodRefinedResourceRequestToString(podC.Annotations)
+						sched.config.Recorder.Event(podC, v1.EventTypeWarning, "FailedScheduling", message)
+
+						// Pod did not fit anywhere, so it is counted as a failure.
+						metrics.PodScheduleFailures.Inc()
+
+						return
+					}
+				*/
+
 				preemptionStartTime := time.Now()
-				sched.preempt(schedulingCycleCtx, prof, state, pod, fitError)
+				victimNodeName, preemptErr := sched.preempt(schedulingCycleCtx, prof, state, pod, fitError)
+				if preemptErr == nil && len(victimNodeName) > 0 {
+					metrics.PreemptionSuccessCounter.Inc()
+				}
 				metrics.PreemptionAttempts.Inc()
 				metrics.SchedulingAlgorithmPreemptionEvaluationDuration.Observe(metrics.SinceInSeconds(preemptionStartTime))
 				metrics.DeprecatedSchedulingDuration.WithLabelValues(metrics.PreemptionEvaluation).Observe(metrics.SinceInSeconds(preemptionStartTime))
@@ -688,10 +760,32 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		} else {
 			klog.Errorf("error selecting node for pod: %v", err)
 			metrics.PodScheduleErrors.Inc()
+
+			if len(pod.Status.NominatedNodeName) > 0 {
+				// hasChanceBeforeReduceOne := sched.config.SchedulerCache.PreemptorStillHaveChance(pod)
+				// pod is preemptor and it is not scheduled successfully
+				sched.SchedulerCache.ReduceOneChanceForPreemptor(pod)
+				if !sched.SchedulerCache.PreemptorStillHaveChance(pod) /*&& hasChanceBeforeReduceOne */ {
+					sched.podPreemptor.removeNominatedNodeName(pod)
+				}
+			}
 		}
 		sched.recordSchedulingFailure(prof, podInfo.DeepCopy(), err, v1.PodReasonUnschedulable, err.Error())
 		return
 	}
+
+	if len(pod.Status.NominatedNodeName) > 0 {
+		// pod is preemptor and it is scheduled successfully
+		// remove the cache info
+		sched.SchedulerCache.DeletePreemptorFromCacheOnly(pod)
+	}
+
+	deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) > 0 && sched.SchedulerCache.IsVictims(deployName) {
+		// pod is victim, and it is scheduled successfully, subtract it from cache
+		sched.SchedulerCache.SubtractOneVictim(deployName)
+	}
+
 	metrics.SchedulingAlgorithmLatency.Observe(metrics.SinceInSeconds(start))
 	podToUpdate := pod.DeepCopy()
 	addResourceErr, shouldUpdate := sched.AddCPUMemoryResource(podToUpdate, scheduleResult.SuggestedHost)
@@ -706,6 +800,10 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		})
 		return
 	}
+	if podToUpdate.Annotations == nil {
+		podToUpdate.Annotations = make(map[string]string)
+	}
+	podToUpdate.Annotations[util.SocketToCpuKey] = "done"
 
 	// if share gpu feature gate is enabled, allocate physical gpu and update pod annotation
 	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) && util.IsGPUSharingPod(podToUpdate) {

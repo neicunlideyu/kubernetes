@@ -17,6 +17,8 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -124,15 +126,15 @@ func CanPodBePreempted(pod *v1.Pod) bool {
 // PreemptionScopeEqual compares the preemption scope label
 // return true if they are equal
 func PreemptionScopeEqual(pod1, pod2 *v1.Pod) bool {
-	if pod1.Labels == nil || pod2.Labels == nil {
+	if pod1.Annotations == nil || pod2.Annotations == nil {
 		return false
 	}
 
-	if len(pod1.Labels[PreemptionScopeKey]) == 0 || len(pod2.Labels[PreemptionScopeKey]) == 0 {
+	if len(pod1.Annotations[PreemptionScopeKey]) == 0 || len(pod2.Annotations[PreemptionScopeKey]) == 0 {
 		return false
 	}
 
-	return pod1.Labels[PreemptionScopeKey] == pod2.Labels[PreemptionScopeKey]
+	return pod1.Annotations[PreemptionScopeKey] == pod2.Annotations[PreemptionScopeKey]
 }
 
 // HigherPriorityPod return true when priority of the first pod is higher than
@@ -166,8 +168,8 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		return p1 < p2
 	}
 	// if the priorities are equal, compare resource types.
-	// order is: GPU, Memory, CPU
-	// Since memory and cpu is not that special, put them behind request size comparisons.
+	// order is: GPU, CPU, Memory
+	// Since memory and cpu are not that critical, comparing them after GPU size comparisons.
 	pod1HasGPU := HasResource(pod1.(*v1.Pod), ResourceGPU)
 	pod2HasGPU := HasResource(pod2.(*v1.Pod), ResourceGPU)
 	if pod1HasGPU != pod2HasGPU {
@@ -194,9 +196,9 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		}
 	}
 
-	pod1MemoryRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
-	pod2MemoryRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
-	result := pod1MemoryRequest.Cmp(*pod2MemoryRequest)
+	pod1CPURequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	pod2CPURequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
+	result := pod1CPURequest.Cmp(*pod2CPURequest)
 	if result < 0 {
 		// pod2 request is greater than pod1
 		return false
@@ -204,9 +206,9 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		return true
 	}
 
-	pod1CPURequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
-	pod2CPURequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
-	result = pod1CPURequest.Cmp(*pod2CPURequest)
+	pod1MemoryRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	pod2MemoryRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceMemory, resource.BinarySI)
+	result = pod1MemoryRequest.Cmp(*pod2MemoryRequest)
 	if result < 0 {
 		// pod2 request is greater than pod1
 		return false
@@ -278,3 +280,229 @@ func getPodRequest(pod *v1.Pod, resourceType v1.ResourceName, format resource.Fo
 }
 
 const PreemptionScopeKey = "PreemptionScopeKey"
+
+const deployNameKeyInPodLabels = "name"
+
+// TODO: if we support multiple controller kinds later, we need to get the controller name from reference owners
+func GetDeployNameFromPod(pod *v1.Pod) string {
+	if pod.Labels != nil {
+		return pod.Labels[deployNameKeyInPodLabels]
+	}
+	return ""
+}
+
+func IsRefinedResourceRequest(key string) bool {
+	if key == CpuPropertiesRequests || key == GpuPropertiesRequests || key == DiskPropertiesRequests ||
+		key == MemoryPropertiesRequests || key == NetworkPropertiesRequests || key == OtherPropertiesRequests ||
+		key == NumericResourcesRequests {
+		return true
+	}
+
+	return false
+}
+
+func PodRefinedResourceRequestToString(annotation map[string]string) string {
+	result := ""
+	if annotation == nil {
+		return result
+	}
+	for key, value := range annotation {
+		if IsRefinedResourceRequest(key) {
+			result = result + "key: " + key + ", value: " + value + "; "
+		}
+	}
+	return result
+}
+
+// check if pod requests refined resources
+func PodRequestRefinedResources(pod *v1.Pod) bool {
+	if pod.Annotations == nil {
+		return false
+	}
+
+	if len(pod.Annotations[CpuPropertiesRequests]) > 0 || len(pod.Annotations[GpuPropertiesRequests]) > 0 || len(pod.Annotations[DiskPropertiesRequests]) > 0 ||
+		len(pod.Annotations[MemoryPropertiesRequests]) > 0 || len(pod.Annotations[NetworkPropertiesRequests]) > 0 || len(pod.Annotations[OtherPropertiesRequests]) > 0 {
+		return true
+	}
+
+	if len(pod.Annotations[NumericResourcesRequests]) > 0 {
+		return true
+	}
+
+	return false
+}
+
+func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod) bool {
+	//TODO: add more preemption checking situations
+
+	// pods request refined resources can preempt those who don't
+	preemptorRequestsRefinedResources := PodRequestRefinedResources(preemptor)
+	podRequestsRefinedResources := PodRequestRefinedResources(pod)
+	if preemptorRequestsRefinedResources != podRequestsRefinedResources {
+		if preemptorRequestsRefinedResources {
+			return true
+		} else {
+			return false
+		}
+	}
+	// both pod and preemptor request refined resources or neither requests
+
+	// For now, just check Numa request number
+	podNumaRequest := getPodRequest(pod, v1.ResourceBytedanceSocket, resource.DecimalSI)
+	preemptorNumaRequest := getPodRequest(preemptor, v1.ResourceBytedanceSocket, resource.DecimalSI)
+
+	if preemptorNumaRequest.Value() != podNumaRequest.Value() {
+		if preemptorNumaRequest.Value() > podNumaRequest.Value() {
+			return true
+		} else {
+			return false
+		}
+	}
+	// numa requests are equal
+
+	// nbw check
+	preemptorRequest25GNBW := podReqeust25GNBW(preemptor)
+	podRequest25GNBW := podReqeust25GNBW(pod)
+	if preemptorRequest25GNBW != podRequest25GNBW {
+		if preemptorRequest25GNBW {
+			return true
+		} else {
+			return false
+		}
+	}
+	// both request 25G NBW or neither requests
+
+	// large package pods can preempt small package pods
+	// at the first stage,
+	// if preemptor's cpu request >= pod * 2 or ( preemptor's cpu request >= pod &&  preemptor memory request >= pod * 4), then, pod can be preempted
+	// TODO: refine this logic
+	// only when both pod and preemptor's NumericResourcesRequests are not nil, we do the following check
+	/*if pod.Annotations != nil && len(pod.Annotations[NumericResourcesRequests]) > 0 &&
+		preemptor.Annotations != nil && len(preemptor.Annotations[NumericResourcesRequests]) > 0 {
+		podCPURequest, podMemRequest, _, podErr := ParseCPUMemNetworkRequest(pod.Annotations[NumericResourcesRequests])
+		preemptorCPURequest, preemptorMemRequest, _, preemptorErr := ParseCPUMemNetworkRequest(preemptor.Annotations[NumericResourcesRequests])
+		if podErr != nil || preemptorErr != nil {
+			klog.Errorf("parse cpu, memory, nbw request error, pod error: %v, preemptor error: %v", podErr, preemptorErr)
+			return false
+		}
+
+		// if preemptor's cpu request >= pod cpu request * 2, pod can be preempted
+		if podCPURequest != 0 && preemptorCPURequest != 0 && preemptorCPURequest >= podCPURequest * 2 {
+			return true
+		}
+
+		// if preemptor's cpu request >= pod and preemptor's memory request >= pod memory request * 4, pod can be preempted
+		if preemptorCPURequest >= podCPURequest && podMemRequest != 0 && preemptorMemRequest != 0 && preemptorMemRequest >= podMemRequest * 4 {
+			return true
+		}
+	}*/
+
+	// TODO: add more checks
+
+	return false
+}
+
+func podReqeust25GNBW(pod *v1.Pod) bool {
+	if pod.Annotations == nil || len(pod.Annotations[NumericResourcesRequests]) == 0 || !strings.Contains(pod.Annotations[NumericResourcesRequests], NBWRefinedResourceKey) {
+		return false
+	}
+
+	// for now, only one nbw(25000) is added to our packages,
+	// so simply checking "nbw" substring is ok here
+	// TODO: add nbw value checks later if needed
+
+	return true
+}
+
+func ParseCPUMemNetworkRequest(properties string) (int64, int64, bool, error) {
+	var cpuRequest, memRequest int64
+	var networkRequest bool
+	var err error
+	andProperties := strings.Split(properties, "&")
+	for _, andProperty := range andProperties {
+		orProperties := strings.Split(andProperty, "|")
+		for _, orProperty := range orProperties {
+			// TODO: for now, only support ">=" operator
+			// support more later if needed
+			kv := strings.Split(orProperty, ">=")
+			if len(kv) != 2 {
+				return 0, 0, false, fmt.Errorf("properties format error")
+			} else {
+				// for now, we do not support Z"OR"-package, so there will not be two CPU or Mem requests
+				// TODO; if "OR"-package is supported, choose suitable resource requests
+				if kv[0] == CPURefinedResourceKey || kv[0] == MemoryRefineResourceKey || kv[0] == NBWRefinedResourceKey {
+					request, err := resource.ParseQuantity(kv[1])
+					if err != nil {
+						return 0, 0, false, fmt.Errorf("parse quantity for %s error: %v", kv[0], err)
+					}
+					switch kv[0] {
+					case CPURefinedResourceKey:
+						cpuRequest = request.MilliValue()
+					case MemoryRefineResourceKey:
+						memRequest = request.Value()
+					case NBWRefinedResourceKey:
+						nbw25g, err := resource.ParseQuantity("25000")
+						if err != nil {
+							return 0, 0, false, fmt.Errorf("parse nbw error: %v", err)
+						}
+						if request.Value() >= nbw25g.Value() {
+							networkRequest = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return cpuRequest, memRequest, networkRequest, err
+}
+
+// IsABPod checks if pod is AB test pod
+func IsABPod(pod *v1.Pod) bool {
+	if pod.Annotations != nil && len(pod.Annotations[ABPodAnnotationKey]) > 0 {
+		return true
+	}
+
+	return false
+}
+
+const (
+	// AB test pods annotation key
+	ABPodAnnotationKey = "tce.kubernetes.io/ignore-quota"
+
+	// TODO: using Annotations at the first stage, modify API later if needed
+
+	// Annotation keys for refined resource
+
+	// discrete resource keys,
+	// TODO: combine them into one. json format, such as: {"DiscreteResourcesKeys": {"CpuProperties": "k1=v1|k1=v2&k3=v3","GpuProperties":"k1=v1|k1=v2&k3=v3" }}
+	CpuPropertiesRequests     = "CpuPropertiesRequests"
+	GpuPropertiesRequests     = "GpuPropertiesRequests"
+	DiskPropertiesRequests    = "DiskPropertiesRequests"
+	MemoryPropertiesRequests  = "MemoryPropertiesRequests"
+	NetworkPropertiesRequests = "NetworkPropertiesRequests"
+	OtherPropertiesRequests   = "OtherPropertiesRequests"
+
+	// numeric resource keys
+	// one can be consumed and the other can not
+	// For now, we only support numeric resources that can not be consumed
+	// TODO: consider using NodeAffinity ?
+	// TODO: support numeric resource that can be consumed
+	// Format can be: "NumericResourcesKeys":"MBM>=200"
+	NumericResourcesRequests = "NumericResourcesRequests"
+
+	// TODO: numa/socket application and it also have CPU and Memory requirement,
+	// for example: instance CPU > 64C, instance Memory > 64G
+	// store Node CPU, Memory and numa/socket info(allocatable and capacity) in CRDs and take them into account
+)
+
+const (
+	CPURefinedResourceKey   = "cpu"
+	MemoryRefineResourceKey = "memory"
+	NumaRefinedResourceKey  = "numa"
+	NBWRefinedResourceKey   = "nbw"
+)
+
+const (
+	SocketToCpuKey = "sockettocpu"
+)

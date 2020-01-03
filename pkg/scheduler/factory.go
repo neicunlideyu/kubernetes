@@ -49,6 +49,7 @@ import (
 	frameworkplugins "k8s.io/kubernetes/pkg/scheduler/framework/plugins"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultbinder"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodepackage"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/queuesort"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
@@ -56,6 +57,9 @@ import (
 	cachedebugger "k8s.io/kubernetes/pkg/scheduler/internal/cache/debugger"
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
+	"k8s.io/kubernetes/pkg/scheduler/util"
+
+	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -72,6 +76,8 @@ type Binder interface {
 // construct a new scheduler.
 type Configurator struct {
 	client clientset.Interface
+
+	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer
 
 	recorderFactory profile.RecorderFactory
 
@@ -108,6 +114,8 @@ type Configurator struct {
 	registry         framework.Registry
 	nodeInfoSnapshot *internalcache.Snapshot
 	extenders        []schedulerapi.Extender
+
+	nodePackageResourceMatchFactor float64
 }
 
 func (c *Configurator) buildFramework(p schedulerapi.KubeSchedulerProfile) (framework.Framework, error) {
@@ -120,6 +128,7 @@ func (c *Configurator) buildFramework(p schedulerapi.KubeSchedulerProfile) (fram
 		framework.WithSnapshotSharedLister(c.nodeInfoSnapshot),
 		framework.WithRunAllFilters(c.alwaysCheckAllPredicates),
 		framework.WithVolumeBinder(c.volumeBinder),
+		framework.WithNonNativeResourceListers(c.refinedNodeResourceInformer),
 	)
 }
 
@@ -193,6 +202,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 
 	algo := core.NewGenericScheduler(
 		c.schedulerCache,
+		c.refinedNodeResourceInformer,
 		podQueue,
 		c.nodeInfoSnapshot,
 		extenders,
@@ -286,6 +296,10 @@ func (c *Configurator) createFromConfig(policy schedulerapi.Policy) (*Scheduler,
 	// predicates even after one or more of them fails.
 	if policy.AlwaysCheckAllPredicates {
 		c.alwaysCheckAllPredicates = policy.AlwaysCheckAllPredicates
+	}
+
+	args.NodePackageArgs = &nodepackage.Args{
+		NodePackageResourceMatchFactor: &c.nodePackageResourceMatchFactor,
 	}
 
 	klog.V(2).Infof("Creating scheduler with fit predicates '%v' and priority functions '%v'", predicateKeys, priorityKeys)
@@ -498,7 +512,11 @@ func MakeDefaultErrorFunc(client clientset.Interface, podQueue internalqueue.Sch
 				pod, err := client.CoreV1().Pods(podID.Namespace).Get(context.TODO(), podID.Name, metav1.GetOptions{})
 				if err == nil {
 					if len(pod.Spec.NodeName) == 0 {
-						podInfo.Pod = pod
+						podCopy := pod.DeepCopy()
+						if podCopy.Annotations != nil && len(podCopy.Annotations[util.SocketToCpuKey]) > 0 {
+							delete(podCopy.Annotations, util.SocketToCpuKey)
+						}
+						podInfo.Pod = podCopy
 						if err := podQueue.AddUnschedulableIfNotPresent(podInfo, podSchedulingCycle); err != nil {
 							klog.Error(err)
 						}

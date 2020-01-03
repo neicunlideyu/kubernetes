@@ -35,6 +35,8 @@ const (
 	OperationLabel = "operation"
 	// Below are possible values for the operation label. Each represents a substep of e2e scheduling:
 
+	// Pre-PredicateEvaluation - pre-predicate evaluation operation label value
+	PrePredicateEvaluation = "pre_predicate_evaluation"
 	// PredicateEvaluation - predicate evaluation operation label value
 	PredicateEvaluation = "predicate_evaluation"
 	// PriorityEvaluation - priority evaluation operation label value
@@ -95,6 +97,14 @@ var (
 			StabilityLevel: metrics.ALPHA,
 		},
 	)
+	SchedulingAlgorithmPrePredicateEvaluationDuration = metrics.NewHistogram(
+		&metrics.HistogramOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "scheduling_algorithm_pre_predicate_evaluation_seconds",
+			Help:      "Scheduling algorithm pre-predicate evaluation duration in seconds",
+			Buckets:   metrics.ExponentialBuckets(0.001, 2, 15),
+		},
+	)
 	DeprecatedSchedulingAlgorithmPredicateEvaluationSecondsDuration = metrics.NewHistogram(
 		&metrics.HistogramOpts{
 			Subsystem:         SchedulerSubsystem,
@@ -148,6 +158,12 @@ var (
 			Name:           "total_preemption_attempts",
 			Help:           "Total preemption attempts in the cluster till now",
 			StabilityLevel: metrics.ALPHA,
+		})
+	PreemptionSuccessCounter = metrics.NewCounter(
+		&metrics.CounterOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "total_preemption_success_counts",
+			Help:      "Total preemption success counts in the cluster till now",
 		})
 	pendingPods = metrics.NewGaugeVec(
 		&metrics.GaugeOpts{
@@ -259,6 +275,7 @@ var (
 		SchedulerGoroutines,
 		PermitWaitDuration,
 		CacheSize,
+		PreemptionSuccessCounter,
 		SchedulingFailedCounter,
 	}
 )

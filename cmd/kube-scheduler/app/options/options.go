@@ -51,6 +51,9 @@ import (
 	kubeschedulerscheme "k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config/validation"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
+
+	nonnativeresourceclient "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
+	nonnativeresourceinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions"
 )
 
 // Options has all the params needed to run a Scheduler
@@ -255,7 +258,7 @@ func (o *Options) Config() (*schedulerappconfig.Config, error) {
 	}
 
 	// Prepare kube clients.
-	client, leaderElectionClient, eventClient, err := createClients(c.ComponentConfig.ClientConnection, o.Master, c.ComponentConfig.LeaderElection.RenewDeadline.Duration)
+	client, leaderElectionClient, nonNativeResourceClient, eventClient, err := createClients(c.ComponentConfig.ClientConnection, o.Master, c.ComponentConfig.LeaderElection.RenewDeadline.Duration)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +283,9 @@ func (o *Options) Config() (*schedulerappconfig.Config, error) {
 	c.CoreEventClient = eventClient.CoreV1()
 	c.CoreBroadcaster = coreBroadcaster
 	c.LeaderElection = leaderElectionConfig
+
+	c.NonNativeResourceInformerFactory = nonnativeresourceinformer.NewSharedInformerFactory(nonNativeResourceClient, 0)
+	c.RefinedNodeResourceInformer = c.NonNativeResourceInformerFactory.Non().V1alpha1().RefinedNodeResources()
 
 	return c, nil
 }
@@ -319,7 +325,7 @@ func makeLeaderElectionConfig(config kubeschedulerconfig.KubeSchedulerLeaderElec
 
 // createClients creates a kube client and an event client from the given config and masterOverride.
 // TODO remove masterOverride when CLI flags are removed.
-func createClients(config componentbaseconfig.ClientConnectionConfiguration, masterOverride string, timeout time.Duration) (clientset.Interface, clientset.Interface, clientset.Interface, error) {
+func createClients(config componentbaseconfig.ClientConnectionConfiguration, masterOverride string, timeout time.Duration) (clientset.Interface, clientset.Interface, nonnativeresourceclient.Interface, clientset.Interface, error) {
 	if len(config.Kubeconfig) == 0 && len(masterOverride) == 0 {
 		klog.Warningf("Neither --kubeconfig nor --master was specified. Using default API client. This might not work.")
 	}
@@ -330,7 +336,7 @@ func createClients(config componentbaseconfig.ClientConnectionConfiguration, mas
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: config.Kubeconfig},
 		&clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: masterOverride}}).ClientConfig()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	kubeConfig.DisableCompression = true
@@ -342,7 +348,7 @@ func createClients(config componentbaseconfig.ClientConnectionConfiguration, mas
 
 	client, err := clientset.NewForConfig(restclient.AddUserAgent(kubeConfig, "scheduler"))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	// shallow copy, do not modify the kubeConfig.Timeout.
@@ -350,13 +356,21 @@ func createClients(config componentbaseconfig.ClientConnectionConfiguration, mas
 	restConfig.Timeout = timeout
 	leaderElectionClient, err := clientset.NewForConfig(restclient.AddUserAgent(&restConfig, "leader-election"))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	eventClient, err := clientset.NewForConfig(kubeConfig)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return client, leaderElectionClient, eventClient, nil
+	// TODO: implement marshal protobuf interface for RefinedNodeResource , and use protobuf content type here then
+	nonNativeResourceConfig := *kubeConfig
+	nonNativeResourceConfig.ContentType = "application/json"
+	nonNativeResourceClient, err := nonnativeresourceclient.NewForConfig(restclient.AddUserAgent(&nonNativeResourceConfig, "non-native-resource-refined-node-resource"))
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return client, leaderElectionClient, nonNativeResourceClient, eventClient, nil
 }

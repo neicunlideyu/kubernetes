@@ -127,6 +127,11 @@ func SetDefaults_KubeSchedulerConfiguration(obj *v1alpha2.KubeSchedulerConfigura
 		obj.ClientConnection.Burst = 100
 	}
 
+	if obj.NodePackageResourceMatchFactor == nil {
+		val := 2.0
+		obj.NodePackageResourceMatchFactor = &val
+	}
+
 	// Use the default LeaderElectionConfiguration options
 	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&obj.LeaderElection.LeaderElectionConfiguration)
 

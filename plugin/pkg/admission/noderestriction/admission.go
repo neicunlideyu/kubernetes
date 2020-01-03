@@ -44,6 +44,8 @@ import (
 	"k8s.io/kubernetes/pkg/auth/nodeidentifier"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
+
+	refinednodeapi "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
 )
 
 // PluginName is a string with the name of the plugin
@@ -74,6 +76,7 @@ type Plugin struct {
 
 	tokenRequestEnabled            bool
 	csiNodeInfoEnabled             bool
+	refinedNodeResourceEnabled     bool
 	expandPersistentVolumesEnabled bool
 }
 
@@ -87,6 +90,7 @@ var (
 func (p *Plugin) InspectFeatureGates(featureGates featuregate.FeatureGate) {
 	p.tokenRequestEnabled = featureGates.Enabled(features.TokenRequest)
 	p.csiNodeInfoEnabled = featureGates.Enabled(features.CSINodeInfo)
+	p.refinedNodeResourceEnabled = featureGates.Enabled(features.NonNativeResourceSchedulingSupport)
 	p.expandPersistentVolumesEnabled = featureGates.Enabled(features.ExpandPersistentVolumes)
 }
 
@@ -111,12 +115,13 @@ func (p *Plugin) ValidateInitialization() error {
 }
 
 var (
-	podResource     = api.Resource("pods")
-	nodeResource    = api.Resource("nodes")
-	pvcResource     = api.Resource("persistentvolumeclaims")
-	svcacctResource = api.Resource("serviceaccounts")
-	leaseResource   = coordapi.Resource("leases")
-	csiNodeResource = storage.Resource("csinodes")
+	podResource         = api.Resource("pods")
+	nodeResource        = api.Resource("nodes")
+	pvcResource         = api.Resource("persistentvolumeclaims")
+	svcacctResource     = api.Resource("serviceaccounts")
+	leaseResource       = coordapi.Resource("leases")
+	csiNodeResource     = storage.Resource("csinodes")
+	refinedNodeResource = refinednodeapi.Resource("refinednoderesources")
 )
 
 // Admit checks the admission policy and triggers corresponding actions
@@ -173,6 +178,11 @@ func (p *Plugin) Admit(ctx context.Context, a admission.Attributes, o admission.
 			return p.admitCSINode(nodeName, a)
 		}
 		return admission.NewForbidden(a, fmt.Errorf("disabled by feature gates %s", features.CSINodeInfo))
+	case refinedNodeResource:
+		if p.refinedNodeResourceEnabled {
+			return p.admitRefinedNodeResource(nodeName, a)
+		}
+		return admission.NewForbidden(a, fmt.Errorf("disabled by feature gates %s", features.NonNativeResourceSchedulingSupport))
 
 	default:
 		return nil
@@ -607,6 +617,26 @@ func (p *Plugin) admitCSINode(nodeName string, a admission.Attributes) error {
 	} else {
 		if a.GetName() != nodeName {
 			return admission.NewForbidden(a, fmt.Errorf("can only access CSINode with the same name as the requesting node"))
+		}
+	}
+
+	return nil
+}
+
+func (p *Plugin) admitRefinedNodeResource(nodeName string, a admission.Attributes) error {
+	// the request must come from a node with the same name as the RefinedNodeResource object
+	if a.GetOperation() == admission.Create {
+		// a.GetName() won't return the name on create, so we drill down to the proposed object
+		accessor, err := meta.Accessor(a.GetObject())
+		if err != nil {
+			return admission.NewForbidden(a, fmt.Errorf("unable to access the object name"))
+		}
+		if accessor.GetName() != nodeName {
+			return admission.NewForbidden(a, fmt.Errorf("can only access RefinedNodeResource with the same name as the requesting node"))
+		}
+	} else {
+		if a.GetName() != nodeName {
+			return admission.NewForbidden(a, fmt.Errorf("can only access RefinedNodeResource with the same name as the requesting node"))
 		}
 	}
 

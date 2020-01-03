@@ -52,6 +52,11 @@ func (in *KubeSchedulerConfiguration) DeepCopyInto(out *KubeSchedulerConfigurati
 		*out = new(int32)
 		**out = **in
 	}
+	if in.NodePackageResourceMatchFactor != nil {
+		in, out := &in.NodePackageResourceMatchFactor, &out.NodePackageResourceMatchFactor
+		*out = new(float64)
+		**out = **in
+	}
 	if in.BindTimeoutSeconds != nil {
 		in, out := &in.BindTimeoutSeconds, &out.BindTimeoutSeconds
 		*out = new(int64)

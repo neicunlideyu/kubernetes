@@ -596,6 +596,7 @@ func TestGenericSchedulerWithExtenders(t *testing.T) {
 
 			scheduler := NewGenericScheduler(
 				cache,
+				nil,
 				queue,
 				emptySnapshot,
 				extenders,

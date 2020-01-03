@@ -24,6 +24,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
@@ -540,8 +541,34 @@ func hasRequiredPodAntiAffinityConstraints(pod *v1.Pod) bool {
 	return affinity != nil && affinity.PodAntiAffinity != nil && len(affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0
 }
 
+func (n *NodeInfo) PodBeAdded(pod *v1.Pod) bool {
+	k1, err := GetPodKey(pod)
+	if err != nil {
+		klog.Errorf("get pod key error in PodBeAdded: %v", err)
+		return false
+	}
+
+	for i := range n.pods {
+		k2, err := GetPodKey(n.pods[i])
+		if err != nil {
+			klog.Errorf("Cannot get pod key from n.pods in PodBeAdded, err: %v", err)
+			continue
+		}
+		if k1 == k2 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AddPod adds pod information to this NodeInfo.
 func (n *NodeInfo) AddPod(pod *v1.Pod) {
+	// pod may be added to NodeInfo in Assume or in CachePreemptor, so check if it is added here
+	if n.PodBeAdded(pod) {
+		// pod has be added to the node info, return directly
+		return
+	}
 	res, non0CPU, non0Mem := calculateResource(pod)
 	n.requestedResource.MilliCPU += res.MilliCPU
 	n.requestedResource.Memory += res.Memory
@@ -812,4 +839,65 @@ func (n *NodeInfo) Filter(pod *v1.Pod) bool {
 		}
 	}
 	return false
+}
+
+func GetFilteredNodes(allNodes []*NodeInfo, filteredNodeNames []string) []*NodeInfo {
+	if len(allNodes) == len(filteredNodeNames) {
+		return allNodes
+	}
+
+	filteredNodeNameSet := sets.NewString(filteredNodeNames...)
+	start, end := 0, len(allNodes)
+	for start < end {
+		if !filteredNodeNameSet.Has(allNodes[start].Node().GetName()) {
+			allNodes[start], allNodes[end-1] = allNodes[end-1], allNodes[start]
+			end--
+		} else {
+			start++
+		}
+	}
+	return allNodes[:end]
+}
+
+// GetResourceRequest returns a *schedulernodeinfo.Resource that covers the largest
+// width in each resource dimension. Because init-containers run sequentially, we collect
+// the max in each dimension iteratively. In contrast, we sum the resource vectors for
+// regular containers since they run simultaneously.
+//
+// Example:
+//
+// Pod:
+//   InitContainers
+//     IC1:
+//       CPU: 2
+//       Memory: 1G
+//     IC2:
+//       CPU: 2
+//       Memory: 3G
+//   Containers
+//     C1:
+//       CPU: 2
+//       Memory: 1G
+//     C2:
+//       CPU: 1
+//       Memory: 1G
+//
+// Result: CPU: 3, Memory: 3G
+func GetResourceRequest(pod *v1.Pod) *Resource {
+	result := &Resource{}
+	for _, container := range pod.Spec.Containers {
+		result.Add(container.Resources.Requests)
+	}
+
+	// take max_resource(sum_pod, any_init_container)
+	for _, container := range pod.Spec.InitContainers {
+		result.SetMaxResource(container.Resources.Requests)
+	}
+
+	// If Overhead is being utilized, add to the total requests for the pod
+	if pod.Spec.Overhead != nil && utilfeature.DefaultFeatureGate.Enabled(features.PodOverhead) {
+		result.Add(pod.Spec.Overhead)
+	}
+
+	return result
 }

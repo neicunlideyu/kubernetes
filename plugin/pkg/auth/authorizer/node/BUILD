@@ -58,6 +58,7 @@ go_library(
         "//staging/src/k8s.io/client-go/informers/storage/v1:go_default_library",
         "//staging/src/k8s.io/client-go/tools/cache:go_default_library",
         "//staging/src/k8s.io/component-base/featuregate:go_default_library",
+        "//staging/src/k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1:go_default_library",
         "//third_party/forked/gonum/graph:go_default_library",
         "//third_party/forked/gonum/graph/simple:go_default_library",
         "//third_party/forked/gonum/graph/traverse:go_default_library",

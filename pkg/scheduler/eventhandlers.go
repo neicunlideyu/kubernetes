@@ -33,6 +33,9 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
+
+	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
+	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 func (sched *Scheduler) onPvAdd(obj interface{}) {
@@ -359,6 +362,7 @@ func addAllEventHandlers(
 	sched *Scheduler,
 	informerFactory informers.SharedInformerFactory,
 	podInformer coreinformers.PodInformer,
+	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer,
 ) {
 	// scheduled pod cache
 	podInformer.Informer().AddEventHandler(
@@ -385,6 +389,7 @@ func addAllEventHandlers(
 			},
 		},
 	)
+
 	// unscheduled pod queue
 	podInformer.Informer().AddEventHandler(
 		cache.FilteringResourceEventHandler{
@@ -462,6 +467,72 @@ func addAllEventHandlers(
 			AddFunc: sched.onStorageClassAdd,
 		},
 	)
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		refinedNodeResourceInformer.Informer().AddEventHandler(
+			cache.ResourceEventHandlerFuncs{
+				AddFunc:    sched.onRefinedNodeResourceAdd,
+				UpdateFunc: sched.onRefinedNodeResourceUpdate,
+				DeleteFunc: sched.onRefinedNodeResourceDelete,
+			},
+		)
+	}
+}
+
+func (sched *Scheduler) onRefinedNodeResourceAdd(obj interface{}) {
+	refinedNodeResource, ok := obj.(*nnrv1alpha1.RefinedNodeResource)
+	if !ok {
+		klog.Errorf("cannot convert to *nnrv1alpha1.RefinedNodeResource: %v", obj)
+		return
+	}
+
+	if err := sched.SchedulerCache.AddRefinedResourceNode(refinedNodeResource); err != nil {
+		klog.Errorf("scheduler cache AddRefinedResourceNode failed: %v", err)
+	}
+}
+
+func (sched *Scheduler) onRefinedNodeResourceUpdate(oldObj, newObj interface{}) {
+	oldRefinedNodeResource, ok := oldObj.(*nnrv1alpha1.RefinedNodeResource)
+	if !ok {
+		klog.Errorf("cannot convert oldObj to *nnrv1alpha1.RefinedNodeResource: %v", oldObj)
+		return
+	}
+	newRefinedNodeResource, ok := newObj.(*nnrv1alpha1.RefinedNodeResource)
+	if !ok {
+		klog.Errorf("cannot convert newObj to *nnrv1alpha1.RefinedNodeResource: %v", newObj)
+		return
+	}
+
+	if reflect.DeepEqual(oldRefinedNodeResource.Spec, newRefinedNodeResource.Spec) && reflect.DeepEqual(oldRefinedNodeResource.Status, newRefinedNodeResource.Status) {
+		klog.Infof("spec and status of old and new refined node resources are equal, skip cache update")
+		return
+	}
+
+	if err := sched.SchedulerCache.UpdateRefinedResourceNode(oldRefinedNodeResource, newRefinedNodeResource); err != nil {
+		klog.Errorf("scheduler cache UpdateRefinedResourceNode failed: %v", err)
+	}
+}
+
+func (sched *Scheduler) onRefinedNodeResourceDelete(obj interface{}) {
+	var refinedNodeResource *nnrv1alpha1.RefinedNodeResource
+	switch t := obj.(type) {
+	case *nnrv1alpha1.RefinedNodeResource:
+		refinedNodeResource = t
+	case cache.DeletedFinalStateUnknown:
+		var ok bool
+		refinedNodeResource, ok = t.Obj.(*nnrv1alpha1.RefinedNodeResource)
+		if !ok {
+			klog.Errorf("cannot convert to *nnrv1alpha1.RefinedNodeResource: %v", t.Obj)
+			return
+		}
+	default:
+		klog.Errorf("cannot convert to *nnrv1alpha1.RefinedNodeResource: %v", t)
+		return
+	}
+
+	if err := sched.SchedulerCache.DeleteRefinedResourceNode(refinedNodeResource); err != nil {
+		klog.Errorf("scheduler cache DeleteRefinedResourceNode failed: %v", err)
+	}
 }
 
 func isAllowSchedule(pod *v1.Pod) bool {

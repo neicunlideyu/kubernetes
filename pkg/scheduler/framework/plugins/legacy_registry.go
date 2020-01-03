@@ -18,7 +18,6 @@ package plugins
 
 import (
 	"encoding/json"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -27,12 +26,14 @@ import (
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelocality"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/labelspreading"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeaffinity"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodelabel"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodename"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodepackage"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodeports"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/nodepreferavoidpods"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
@@ -92,6 +93,15 @@ const (
 	EvenPodsSpreadPriority = "EvenPodsSpreadPriority"
 	// MostGPURequestedPriority defines the name of prioritizer function that gives gpu used nodes higher priority.
 	MostGPURequestedPriority = "MostGPURequestedPriority"
+	// NodePackageCPUMatchPriority defines the name of prioritizer function that prioritizes nodes based on
+	// whose cpu resources and package requests
+	NodePackageCPUMatchPriority = "NodePackageCPUMatchPriority"
+	// NodePackageCPUMatchPriority defines the name of prioritizer function that prioritizes nodes based on
+	// whose memory resources and package requests
+	NodePackageMemoryMatchPriority = "NodePackageMemoryMatchPriority"
+	// NodePackageNBWMatchPriority defines the name of prioritizer function that prioritizes nodes based on
+	// whether they have 25Gi nbw
+	NodePackageNBWMatchPriority = "NodePackageNBWMatchPriority"
 )
 
 const (
@@ -145,12 +155,14 @@ const (
 	MatchHostUniquePred = "MatchHostUnique"
 
 	ShareGPUPred = "ShareGPU"
+	// NodeMatchesPackagePred defines the name of predicate NodeMatchesPackage
+	NodeMatchesPackagePred = "NodeMatchesPackage"
 )
 
 // PredicateOrdering returns the ordering of predicate execution.
 func PredicateOrdering() []string {
 	return []string{CheckNodeUnschedulablePred,
-		GeneralPred, HostNamePred, PodFitsHostPortsPred,
+		GeneralPred, HostNamePred, PodFitsHostPortsPred, NodeMatchesPackagePred,
 		MatchNodeSelectorPred, PodFitsResourcesPred, ShareGPUPred, NoDiskConflictPred,
 		PodToleratesNodeTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
@@ -187,6 +199,8 @@ type ConfigProducerArgs struct {
 	NodeResourcesFitArgs *noderesources.FitArgs
 	// InterPodAffinityArgs is the args for InterPodAffinity plugin
 	InterPodAffinityArgs *interpodaffinity.Args
+	// NodePackageArgs is the args for NodePackage plugin
+	NodePackageArgs *nodepackage.Args
 }
 
 // ConfigProducer returns the set of plugins and their configuration for a
@@ -360,6 +374,14 @@ func NewLegacyRegistry() *LegacyRegistry {
 			plugins.Filter = appendToPluginSet(plugins.Filter, noderesources.ShareGPUName, nil)
 			return
 		})
+	registry.registerPredicateConfigProducer(NodeMatchesPackagePred,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Filter = appendToPluginSet(plugins.Filter, nodepackage.Name, nil)
+			if args.NodePackageArgs != nil {
+				pluginConfig = append(pluginConfig, NewPluginConfig(nodepackage.Name, args.NodePackageArgs))
+			}
+			return
+		})
 
 	// Register Priorities.
 	registry.registerPriorityConfigProducer(SelectorSpreadPriority,
@@ -436,6 +458,26 @@ func NewLegacyRegistry() *LegacyRegistry {
 			plugins.Score = appendToPluginSet(plugins.Score, noderesources.MostSocketAllocatedName, &args.Weight)
 			return
 		})
+	registry.registerPriorityConfigProducer(NodePackageCPUMatchPriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, nodepackage.NodePackageCPUMatch, &args.Weight)
+			return
+		})
+	registry.DefaultPriorities[NodePackageCPUMatchPriority] = 100
+
+	registry.registerPriorityConfigProducer(NodePackageMemoryMatchPriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, nodepackage.NodePackageMemMatch, &args.Weight)
+			return
+		})
+	registry.DefaultPriorities[NodePackageMemoryMatchPriority] = 50
+
+	registry.registerPriorityConfigProducer(NodePackageNBWMatchPriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, nodepackage.NodePackageNBWMatch, &args.Weight)
+			return
+		})
+	registry.DefaultPriorities[NodePackageNBWMatchPriority] = 10
 
 	registry.registerPriorityConfigProducer(nodelabel.Name,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {

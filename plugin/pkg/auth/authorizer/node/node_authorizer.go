@@ -35,6 +35,8 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 	"k8s.io/kubernetes/third_party/forked/gonum/graph"
 	"k8s.io/kubernetes/third_party/forked/gonum/graph/traverse"
+
+	refinednodeapi "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
 )
 
 // NodeAuthorizer authorizes requests from kubelets, with the following logic:
@@ -69,14 +71,15 @@ func NewAuthorizer(graph *Graph, identifier nodeidentifier.NodeIdentifier, rules
 }
 
 var (
-	configMapResource = api.Resource("configmaps")
-	secretResource    = api.Resource("secrets")
-	pvcResource       = api.Resource("persistentvolumeclaims")
-	pvResource        = api.Resource("persistentvolumes")
-	vaResource        = storageapi.Resource("volumeattachments")
-	svcAcctResource   = api.Resource("serviceaccounts")
-	leaseResource     = coordapi.Resource("leases")
-	csiNodeResource   = storageapi.Resource("csinodes")
+	configMapResource   = api.Resource("configmaps")
+	secretResource      = api.Resource("secrets")
+	pvcResource         = api.Resource("persistentvolumeclaims")
+	pvResource          = api.Resource("persistentvolumes")
+	vaResource          = storageapi.Resource("volumeattachments")
+	svcAcctResource     = api.Resource("serviceaccounts")
+	leaseResource       = coordapi.Resource("leases")
+	csiNodeResource     = storageapi.Resource("csinodes")
+	refinedNodeResource = refinednodeapi.Resource("refinednoderesources")
 )
 
 func (r *NodeAuthorizer) Authorize(ctx context.Context, attrs authorizer.Attributes) (authorizer.Decision, string, error) {
@@ -122,6 +125,11 @@ func (r *NodeAuthorizer) Authorize(ctx context.Context, attrs authorizer.Attribu
 				return r.authorizeCSINode(nodeName, attrs)
 			}
 			return authorizer.DecisionNoOpinion, fmt.Sprintf("disabled by feature gates %s", features.CSINodeInfo), nil
+		case refinedNodeResource:
+			if r.features.Enabled(features.NonNativeResourceSchedulingSupport) {
+				return r.authorizeRefinedNodeResource(nodeName, attrs)
+			}
+			return authorizer.DecisionNoOpinion, fmt.Sprintf("disabled by feature gate %s", features.NonNativeResourceSchedulingSupport), nil
 		}
 
 	}
@@ -253,6 +261,36 @@ func (r *NodeAuthorizer) authorizeLease(nodeName string, attrs authorizer.Attrib
 	if verb != "create" && attrs.GetName() != nodeName {
 		klog.V(2).Infof("NODE DENY: %s %#v", nodeName, attrs)
 		return authorizer.DecisionNoOpinion, "can only access node lease with the same name as the requesting node", nil
+	}
+
+	return authorizer.DecisionAllow, "", nil
+}
+
+func (r *NodeAuthorizer) authorizeRefinedNodeResource(nodeName string, attrs authorizer.Attributes) (authorizer.Decision, string, error) {
+	// allowed verbs: get, create, update, patch, delete
+	verb := attrs.GetVerb()
+	if verb != "get" &&
+		verb != "watch" &&
+		verb != "list" &&
+		verb != "create" &&
+		verb != "update" &&
+		verb != "patch" &&
+		verb != "delete" {
+		klog.V(2).Infof("NODE DENY: %s %#v", nodeName, attrs)
+		return authorizer.DecisionNoOpinion, "can only get, list, watch, create, update, patch, or delete a RefinedNodeResource", nil
+	}
+
+	if len(attrs.GetSubresource()) > 0 {
+		klog.V(2).Infof("NODE DENY: %s %#v", nodeName, attrs)
+		return authorizer.DecisionNoOpinion, "cannot authorize RefinedNodeResource subresources", nil
+	}
+
+	// the request must come from a node with the same name as the RefinedNodeResource
+	// note we skip this check for create, since the authorizer doesn't know the name on create
+	// the noderestriction admission plugin is capable of performing this check at create time
+	if verb != "create" && attrs.GetName() != nodeName {
+		klog.V(2).Infof("NODE DENY: %s %#v", nodeName, attrs)
+		return authorizer.DecisionNoOpinion, "can only access RefinedNodeResource with the same name as the requesting node", nil
 	}
 
 	return authorizer.DecisionAllow, "", nil

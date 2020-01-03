@@ -81,6 +81,10 @@ type KubeSchedulerConfiguration struct {
 	// nodes will be scored.
 	PercentageOfNodesToScore int32
 
+	// if NodeCPUCapacity / NodeNumaCapacity * PodNumaReqeust >= PodCPURequest * NodePackageResourceMatchFactor
+	// then do not schedule pod to that node, because we think putting pod there will waste too much node resource
+	NodePackageResourceMatchFactor float64
+
 	// Duration to wait for a binding operation to complete before timing out
 	// Value must be non-negative integer. The value zero indicates no waiting.
 	// If this value is nil, the default value will be used.
@@ -248,6 +252,8 @@ const (
 	// that once found feasible, the scheduler stops looking for more nodes.
 	// A value of 0 means adaptive, meaning the scheduler figures out a proper default.
 	DefaultPercentageOfNodesToScore = 0
+
+	DefaultNodePackageFactor = 2.0
 
 	// MaxCustomPriorityScore is the max score UtilizationShapePoint expects.
 	MaxCustomPriorityScore int64 = 10

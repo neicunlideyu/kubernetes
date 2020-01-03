@@ -17,6 +17,8 @@ go_library(
         "//staging/src/k8s.io/client-go/tools/events:go_default_library",
         "//staging/src/k8s.io/client-go/tools/leaderelection:go_default_library",
         "//staging/src/k8s.io/client-go/tools/record:go_default_library",
+        "//staging/src/k8s.io/non-native-resource-api/pkg/client/informers/externalversions:go_default_library",
+        "//staging/src/k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1:go_default_library",
     ],
 )
 

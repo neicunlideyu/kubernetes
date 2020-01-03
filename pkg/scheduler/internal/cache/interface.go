@@ -19,6 +19,8 @@ package cache
 import (
 	v1 "k8s.io/api/core/v1"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+
+	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
 )
 
 // Cache collects pods' information and provides node-level aggregated information.
@@ -114,6 +116,29 @@ type Cache interface {
 
 	GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo
 
+	FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo) []string
+
+	AddRefinedResourceNode(refinedNodeResource *nnrv1alpha1.RefinedNodeResource) error
+
+	UpdateRefinedResourceNode(oldRefinedNodeResource, newRefinedNodeResource *nnrv1alpha1.RefinedNodeResource) error
+
+	DeleteRefinedResourceNode(refinedNodeResource *nnrv1alpha1.RefinedNodeResource) error
+
+	CachePreemptor(preemptor *v1.Pod) error
+
+	PreemptorStillHaveChance(pod *v1.Pod) bool
+
+	ReduceOneChanceForPreemptor(preemptor *v1.Pod) error
+
+	DeletePreemptor(preemptor *v1.Pod) error
+
+	DeletePreemptorFromCacheOnly(preemptor *v1.Pod) error
+
+	IsVictims(deployName string) bool
+
+	AddOneVictim(deployName string) error
+
+	SubtractOneVictim(deployName string) error
 }
 
 // Dump is a dump of the cache state.

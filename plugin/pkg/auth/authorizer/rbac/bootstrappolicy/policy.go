@@ -58,6 +58,8 @@ const (
 	customMetricsGroup  = "custom.metrics.k8s.io"
 	networkingGroup     = "networking.k8s.io"
 	eventsGroup         = "events.k8s.io"
+
+	nonNativeResourceGroup = "non.native.resource.k8s.io"
 )
 
 func addDefaultMetadata(obj runtime.Object) {
@@ -177,6 +179,12 @@ func NodeRules() []rbacv1.PolicyRule {
 	if utilfeature.DefaultFeatureGate.Enabled(features.CSINodeInfo) {
 		csiNodeInfoRule := rbacv1helpers.NewRule("get", "create", "update", "patch", "delete").Groups("storage.k8s.io").Resources("csinodes").RuleOrDie()
 		nodePolicyRules = append(nodePolicyRules, csiNodeInfoRule)
+	}
+
+	// Non native kubernetes resources
+	if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		refinedNodeInfoRule := rbacv1helpers.NewRule("get", "list", "watch", "create", "update", "patch", "delete").Groups(nonNativeResourceGroup).Resources("refinednoderesources").RuleOrDie()
+		nodePolicyRules = append(nodePolicyRules, refinedNodeInfoRule)
 	}
 
 	// RuntimeClass
@@ -526,6 +534,8 @@ func ClusterRoles() []rbacv1.ClusterRole {
 		// TODO: Remove once we fully migrate to lease in leader-election.
 		rbacv1helpers.NewRule("create").Groups(legacyGroup).Resources("endpoints").RuleOrDie(),
 		rbacv1helpers.NewRule("get", "update").Groups(legacyGroup).Resources("endpoints").Names("kube-scheduler").RuleOrDie(),
+		// non native resource rules
+		rbacv1helpers.NewRule(Read...).Groups(nonNativeResourceGroup).Resources("refinednoderesources").RuleOrDie(),
 
 		// Fundamental resources
 		rbacv1helpers.NewRule(Read...).Groups(legacyGroup).Resources("nodes").RuleOrDie(),

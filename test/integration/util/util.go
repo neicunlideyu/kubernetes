@@ -87,6 +87,7 @@ func StartScheduler(clientSet clientset.Interface) (*scheduler.Scheduler, corein
 	sched, err := scheduler.New(
 		clientSet,
 		informerFactory,
+		nil,
 		podInformer,
 		profile.NewRecorderFactory(evtBroadcaster),
 		ctx.Done())
@@ -389,6 +390,7 @@ func InitTestSchedulerWithOptions(
 	testCtx.Scheduler, err = scheduler.New(
 		testCtx.ClientSet,
 		testCtx.InformerFactory,
+		nil,
 		podInformer,
 		profile.NewRecorderFactory(eventBroadcaster),
 		testCtx.Ctx.Done(),

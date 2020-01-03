@@ -38,6 +38,7 @@ import (
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/server/mux"
 	"k8s.io/apiserver/pkg/server/routes"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/apiserver/pkg/util/term"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -54,6 +55,7 @@ import (
 	schedulerserverconfig "k8s.io/kubernetes/cmd/kube-scheduler/app/config"
 	"k8s.io/kubernetes/cmd/kube-scheduler/app/options"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/scheduler"
 	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
@@ -176,6 +178,7 @@ func Run(ctx context.Context, cc schedulerserverconfig.CompletedConfig, outOfTre
 	// Create the scheduler.
 	sched, err := scheduler.New(cc.Client,
 		cc.InformerFactory,
+		cc.RefinedNodeResourceInformer,
 		cc.PodInformer,
 		recorderFactory,
 		ctx.Done(),
@@ -183,6 +186,7 @@ func Run(ctx context.Context, cc schedulerserverconfig.CompletedConfig, outOfTre
 		scheduler.WithAlgorithmSource(cc.ComponentConfig.AlgorithmSource),
 		scheduler.WithPreemptionDisabled(cc.ComponentConfig.DisablePreemption),
 		scheduler.WithPercentageOfNodesToScore(cc.ComponentConfig.PercentageOfNodesToScore),
+		scheduler.WithNodePackageResourceMatchFactor(cc.ComponentConfig.NodePackageResourceMatchFactor),
 		scheduler.WithBindTimeoutSeconds(cc.ComponentConfig.BindTimeoutSeconds),
 		scheduler.WithFrameworkOutOfTreeRegistry(outOfTreeRegistry),
 		scheduler.WithPodMaxBackoffSeconds(cc.ComponentConfig.PodMaxBackoffSeconds),
@@ -235,6 +239,12 @@ func Run(ctx context.Context, cc schedulerserverconfig.CompletedConfig, outOfTre
 
 	// Wait for all caches to sync before scheduling.
 	cc.InformerFactory.WaitForCacheSync(ctx.Done())
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		go cc.RefinedNodeResourceInformer.Informer().Run(ctx.Done())
+		cc.NonNativeResourceInformerFactory.Start(ctx.Done())
+		cc.NonNativeResourceInformerFactory.WaitForCacheSync(ctx.Done())
+	}
 
 	// If leader election is enabled, runCommand via LeaderElector until done and exit.
 	if cc.LeaderElection != nil {

@@ -134,6 +134,9 @@ func autoConvert_v1alpha2_KubeSchedulerConfiguration_To_config_KubeSchedulerConf
 	if err := v1.Convert_Pointer_int32_To_int32(&in.PercentageOfNodesToScore, &out.PercentageOfNodesToScore, s); err != nil {
 		return err
 	}
+	if err := v1.Convert_Pointer_float64_To_float64(&in.NodePackageResourceMatchFactor, &out.NodePackageResourceMatchFactor, s); err != nil {
+		return err
+	}
 	if err := v1.Convert_Pointer_int64_To_int64(&in.BindTimeoutSeconds, &out.BindTimeoutSeconds, s); err != nil {
 		return err
 	}
@@ -179,6 +182,9 @@ func autoConvert_config_KubeSchedulerConfiguration_To_v1alpha2_KubeSchedulerConf
 		return err
 	}
 	if err := v1.Convert_int32_To_Pointer_int32(&in.PercentageOfNodesToScore, &out.PercentageOfNodesToScore, s); err != nil {
+		return err
+	}
+	if err := v1.Convert_float64_To_Pointer_float64(&in.NodePackageResourceMatchFactor, &out.NodePackageResourceMatchFactor, s); err != nil {
 		return err
 	}
 	if err := v1.Convert_int64_To_Pointer_int64(&in.BindTimeoutSeconds, &out.BindTimeoutSeconds, s); err != nil {

@@ -71,6 +71,10 @@ func ValidateKubeSchedulerConfiguration(cc *config.KubeSchedulerConfiguration) f
 		allErrs = append(allErrs, field.Invalid(field.NewPath("podMaxBackoffSeconds"),
 			cc.PodMaxBackoffSeconds, "must be greater than or equal to PodInitialBackoffSeconds"))
 	}
+	if cc.NodePackageResourceMatchFactor < 0 || cc.NodePackageResourceMatchFactor > 100 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("nodePackageResourceMatchFactor"),
+			cc.NodePackageResourceMatchFactor, "not in valid range 1-100"))
+	}
 
 	allErrs = append(allErrs, validateExtenders(field.NewPath("extenders"), cc.Extenders)...)
 	return allErrs

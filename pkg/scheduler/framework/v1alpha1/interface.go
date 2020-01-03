@@ -33,6 +33,8 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	schedulerlisters "k8s.io/kubernetes/pkg/scheduler/listers"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
+
+	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 // NodeScoreList declares a list of nodes and their scores.
@@ -522,4 +524,6 @@ type FrameworkHandle interface {
 
 	// VolumeBinder returns the volume binder used by scheduler.
 	VolumeBinder() scheduling.SchedulerVolumeBinder
+
+	RefinedNodeResourceInformer() nonnativeresourcev1alpha1.RefinedNodeResourceInformer
 }

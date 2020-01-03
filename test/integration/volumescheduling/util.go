@@ -112,6 +112,7 @@ func initTestSchedulerWithOptions(
 	testCtx.scheduler, err = scheduler.New(
 		testCtx.clientSet,
 		testCtx.informerFactory,
+		nil,
 		podInformer,
 		profile.NewRecorderFactory(eventBroadcaster),
 		testCtx.ctx.Done())

@@ -600,6 +600,12 @@ const (
 	// Decide thresholdmet base on dynamic thresholds provided by load metrics provider.
 	DynamicLoadEvictionThreshold featuregate.Feature = "DynamicLoadEvictionThreshold"
 
+	// owner: @renyuquan
+	// alpha: v1.14
+	//
+	// Enables non native k8s resource scheduling support
+	NonNativeResourceSchedulingSupport featuregate.Feature = "NonNativeResourceSchedulingSupport"
+
 	// owner: @zhangyadong.0808
 	// alpha: v1.14
 	//

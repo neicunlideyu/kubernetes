@@ -50,6 +50,8 @@ type policyName string
 // cpuManagerStateFileName is the file name where cpu manager stores its state
 const cpuManagerStateFileName = "cpu_manager_state"
 
+const SkipingPodAnnotationKey = "cpumanager.tce.kubernetes.io/skiping-pod"
+
 // Manager interface provides methods for Kubelet to manage pod cpus.
 type Manager interface {
 	// Start is called during Kubelet initialization.
@@ -229,6 +231,10 @@ func (m *manager) Allocate(p *v1.Pod, c *v1.Container) error {
 }
 
 func (m *manager) AddContainer(p *v1.Pod, c *v1.Container, containerID string) error {
+	if skipingPod(p) {
+		return nil
+	}
+
 	m.Lock()
 	// Get the CPUs assigned to the container during Allocate()
 	// (or fall back to the default CPUSet if none were assigned).
@@ -355,6 +361,10 @@ func (m *manager) reconcileState() (success []reconciledContainer, failure []rec
 
 	m.removeStaleState()
 	for _, pod := range m.activePods() {
+		if skipingPod(pod) {
+			continue
+		}
+
 		pstatus, ok := m.podStatusProvider.GetPodStatus(pod.UID)
 		if !ok {
 			klog.Warningf("[cpumanager] reconcileState: skipping pod; status not found (pod: %s)", pod.Name)
@@ -460,4 +470,9 @@ func (m *manager) updateContainerCPUSet(containerID string, cpus cpuset.CPUSet) 
 		&runtimeapi.LinuxContainerResources{
 			CpusetCpus: cpus.String(),
 		})
+}
+
+func skipingPod(pod *v1.Pod) bool {
+	_, ok := pod.Annotations[SkipingPodAnnotationKey]
+	return ok
 }

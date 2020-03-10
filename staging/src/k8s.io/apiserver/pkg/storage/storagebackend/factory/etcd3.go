@@ -19,6 +19,7 @@ package factory
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"path"
@@ -50,6 +51,11 @@ const keepaliveTimeout = 10 * time.Second
 // It is set to 20 seconds as times shorter than that will cause TLS connections to fail
 // on heavily loaded arm64 CPUs (issue #64649)
 const dialTimeout = 20 * time.Second
+
+// MaxCallRecvMsgSize is the client-side response receive limit.
+// If 0, it defaults to "math.MaxInt32", because range response can
+// easily exceed request send limits. we increase this size to math.MaxInt32 * 20 to list huge data
+const grpcMaxCallRecvMsgSize = math.MaxInt32 * 20
 
 func init() {
 	// grpcprom auto-registers (via an init function) their client metrics, since we are opting out of
@@ -140,6 +146,7 @@ func newETCD3Client(c storagebackend.TransportConfig) (*clientv3.Client, error) 
 		DialOptions:          dialOptions,
 		Endpoints:            c.ServerList,
 		TLS:                  tlsConfig,
+		MaxCallRecvMsgSize:   grpcMaxCallRecvMsgSize,
 	}
 
 	return clientv3.New(cfg)

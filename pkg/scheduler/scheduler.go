@@ -671,7 +671,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	addResourceErr, shouldUpdate := sched.AddCPUMemoryResource(podToUpdate, scheduleResult.SuggestedHost)
 	if addResourceErr != nil {
 		klog.Errorf("Failed to schedule: %v, fail to add cpu/memory resource for socket policy.", podToUpdate)
-		sched.Error(podInfo, addResourceErr)
+		sched.Error(podInfo.DeepCopy(), addResourceErr)
 		prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", addResourceErr.Error())
 		sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
 			Type:   v1.PodScheduled,
@@ -688,7 +688,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		allocateShareGPUErr := nodeInfo.AllocateShareGPU(podToUpdate)
 		if allocateShareGPUErr != nil {
 			klog.Errorf("Failed to schedule: %v, fail to allocate physical gpu.", podToUpdate)
-			sched.Error(podInfo, allocateShareGPUErr)
+			sched.Error(podInfo.DeepCopy(), allocateShareGPUErr)
 			prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", allocateShareGPUErr.Error())
 			sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
 				Type:   v1.PodScheduled,
@@ -791,13 +791,13 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 			klog.V(4).Infof("Starting updating cpu/memory resource for the pod: %s", podToUpdate.Name)
 			errUpdate := sched.podUpdater.update(podToUpdate)
 			if errUpdate != nil {
-				klog.Errorf("Failed to Update pod: %v/%v %v", pod.Namespace, pod.Name, errUpdate)
+				klog.Errorf("Failed to Update pod: %v/%v %v", podToUpdate.Namespace, podToUpdate.Name, errUpdate)
 				if err := sched.SchedulerCache.ForgetPod(assumedPod); err != nil {
 					klog.Errorf("scheduler cache ForgetPod failed 1: %v", err)
 				}
-				sched.Error(podInfo, errUpdate)
-				prof.Recorder.Eventf(pod, nil, v1.EventTypeNormal, "FailedScheduling", "Update failed: %v", errUpdate.Error())
-				sched.podConditionUpdater.update(pod, &v1.PodCondition{
+				sched.Error(podInfo.DeepCopy(), errUpdate)
+				prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeNormal, "FailedScheduling", "Update failed: %v", errUpdate.Error())
+				sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
 					Type:   v1.PodScheduled,
 					Status: v1.ConditionFalse,
 					Reason: "BindingRejected",

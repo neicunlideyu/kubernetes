@@ -905,7 +905,7 @@ func (m *manager) createContainerLocked(containerName string, watchSource watche
 	}
 	if !accept {
 		// ignoring this container.
-		klog.V(4).Infof("ignoring container %q", containerName)
+		klog.V(5).Infof("ignoring container %q", containerName)
 		return nil
 	}
 	collectorManager, err := collector.NewCollectorManager()

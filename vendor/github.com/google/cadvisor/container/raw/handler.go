@@ -51,7 +51,16 @@ func isRootCgroup(name string) bool {
 }
 
 func newRawContainerHandler(name string, cgroupSubsystems *libcontainer.CgroupSubsystems, machineInfoFactory info.MachineInfoFactory, fsInfo fs.FsInfo, watcher *common.InotifyWatcher, rootFs string, includedMetrics container.MetricSet) (container.ContainerHandler, error) {
-	cgroupPaths := common.MakeCgroupPaths(cgroupSubsystems.MountPoints, name)
+	var cgroupPaths map[string]string
+	if isRootCgroup(name) {
+		mountPoints := cgroupSubsystems.MountPoints
+		if _, exists := mountPoints["memory"]; exists {
+			delete(mountPoints, "memory")
+		}
+		cgroupPaths = common.MakeCgroupPaths(mountPoints, name)
+	} else {
+		cgroupPaths = common.MakeCgroupPaths(cgroupSubsystems.MountPoints, name)
+	}
 
 	cHints, err := common.GetContainerHintsFromFile(*common.ArgContainerHints)
 	if err != nil {
@@ -234,14 +243,27 @@ func (self *rawContainerHandler) GetStats() (*info.ContainerStats, error) {
 	if err != nil {
 		return stats, err
 	}
-
+	_ = self.getRootMemory(stats)
 	// Get filesystem stats.
 	err = self.getFsStats(stats)
 	if err != nil {
 		return stats, err
 	}
+	return stats, err
+}
 
-	return stats, nil
+func (self *rawContainerHandler) getRootMemory(stats *info.ContainerStats) error {
+	if !isRootCgroup(self.name) {
+		return nil
+	}
+	// get memory status for root cgroup
+	newStats, err := getMemoryStats()
+	if err != nil{
+		klog.Warning("cannot get memory stats", err)
+		return err
+	}
+	stats.Memory = newStats
+	return nil
 }
 
 func (self *rawContainerHandler) GetCgroupPath(resource string) (string, error) {

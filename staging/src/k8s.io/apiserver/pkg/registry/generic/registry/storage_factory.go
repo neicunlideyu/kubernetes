@@ -52,7 +52,7 @@ func StorageWithCacher(capacity int, rejectListFromNode bool) generic.StorageDec
 			return s, d, nil
 		}
 		if klog.V(5) {
-			klog.Infof("Storage caching is enabled for %T with capacity %v", newFunc(), capacity)
+			klog.Infof("Storage caching is enabled for %s, %T with capacity %v", resourcePrefix, newFunc(), capacity)
 		}
 
 		// TODO: we would change this later to make storage always have cacher and hide low level KV layer inside.

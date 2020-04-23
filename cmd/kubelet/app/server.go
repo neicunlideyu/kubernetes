@@ -54,6 +54,7 @@ import (
 	certificatesclient "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	certutil "k8s.io/client-go/util/cert"
@@ -103,6 +104,8 @@ import (
 	"k8s.io/kubernetes/pkg/util/rlimit"
 	"k8s.io/kubernetes/pkg/volume/util/hostutil"
 	"k8s.io/kubernetes/pkg/volume/util/subpath"
+	nonnative "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
+	nonnativeinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions"
 	"k8s.io/utils/exec"
 )
 
@@ -560,7 +563,7 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, featureGate f
 		kubeDeps.HeartbeatClient = nil
 		klog.Warningf("standalone mode, no API client")
 
-	case kubeDeps.KubeClient == nil, kubeDeps.EventClient == nil, kubeDeps.HeartbeatClient == nil:
+	case kubeDeps.KubeClient == nil, kubeDeps.EventClient == nil, kubeDeps.HeartbeatClient == nil, kubeDeps.RefinedResourceClient == nil:
 		clientConfig, closeAllConns, err := buildKubeletClientConfig(s, nodeName)
 		if err != nil {
 			return err

@@ -57,7 +57,10 @@ type Manager interface {
 	// GetCapacity returns the amount of available device plugin resource capacity, resource allocatable
 	// and inactive device plugin resources previously registered on the node.
 	GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
+
 	GetWatcherHandler() cache.PluginHandler
+
+	GetRefinedResource() (map[string]string, map[string]string, map[string]string)
 
 	// GetDevices returns information about the devices assigned to pods and containers
 	GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices

@@ -85,9 +85,9 @@ message NUMANode {
 * struct Device {
 *    ID: "GPU-fef8089b-4820-abfc-e83e-94318197576e",
 *    Health: "Healthy",
-*    Topology: 
-*      Node: 
-         ID: 1 
+*    Topology:
+*      Node:
+         ID: 1
 *} */
 message Device {
 	// A unique ID assigned by the device plugin used
@@ -98,6 +98,8 @@ message Device {
 	string health = 2;
 	// Topology for device
 	TopologyInfo topology = 3;
+	// Properties of this device
+	map<string, string> properties = 101;
 }
 
 // - PreStartContainer is expected to be called before each container start if indicated by plugin during registration phase.

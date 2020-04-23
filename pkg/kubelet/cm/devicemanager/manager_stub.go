@@ -64,6 +64,10 @@ func (h *ManagerStub) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 	return nil, nil, []string{}
 }
 
+func (h *ManagerStub) GetRefinedResource() (map[string]string, map[string]string, map[string]string) {
+	return nil, nil, nil
+}
+
 // GetWatcherHandler returns plugin watcher interface
 func (h *ManagerStub) GetWatcherHandler() cache.PluginHandler {
 	return nil

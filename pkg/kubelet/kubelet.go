@@ -261,6 +261,8 @@ type Dependencies struct {
 	DockerClientConfig      *dockershim.ClientConfig
 	EventClient             v1core.EventsGetter
 	HeartbeatClient         clientset.Interface
+	RefinedResourceClient   nonnative.Interface
+	RefinedResourceInformer nonnativeinformer.RefinedNodeResourceInformer
 	OnHeartbeatFailure      func()
 	KubeClient              clientset.Interface
 	Mounter                 mount.Interface
@@ -579,6 +581,8 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 		nodeName:                                nodeName,
 		kubeClient:                              kubeDeps.KubeClient,
 		heartbeatClient:                         kubeDeps.HeartbeatClient,
+		refinedResourceClient:                   kubeDeps.RefinedResourceClient,
+		refinedResourceInformer:                 kubeDeps.RefinedResourceInformer,
 		onRepeatedHeartbeatFailure:              kubeDeps.OnHeartbeatFailure,
 		rootDirectory:                           rootDirectory,
 		resyncInterval:                          kubeCfg.SyncFrequency.Duration,

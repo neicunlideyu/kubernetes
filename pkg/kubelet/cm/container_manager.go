@@ -78,6 +78,8 @@ type ContainerManager interface {
 	// and inactive device plugin resources previously registered on the node.
 	GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string)
 
+	GetDevicePluginRefinedResource() (map[string]string, map[string]string, map[string]string)
+
 	// UpdateQOSCgroups performs housekeeping updates to ensure that the top
 	// level QoS containers have their desired state in a thread-safe way
 	UpdateQOSCgroups() error

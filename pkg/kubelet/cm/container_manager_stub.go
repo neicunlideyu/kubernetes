@@ -89,6 +89,10 @@ func (cm *containerManagerStub) GetDevicePluginResourceCapacity() (v1.ResourceLi
 	return nil, nil, []string{}
 }
 
+func (cm *containerManagerStub) GetDevicePluginRefinedResource() (map[string]string, map[string]string, map[string]string) {
+	return nil, nil, nil
+}
+
 func (cm *containerManagerStub) NewPodContainerManager() PodContainerManager {
 	return &podContainerManagerStub{}
 }

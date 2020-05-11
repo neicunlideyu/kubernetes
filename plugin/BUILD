@@ -26,6 +26,7 @@ filegroup(
         "//plugin/pkg/admission/limitranger:all-srcs",
         "//plugin/pkg/admission/namespace/autoprovision:all-srcs",
         "//plugin/pkg/admission/namespace/exists:all-srcs",
+        "//plugin/pkg/admission/nodedeletion:all-srcs",
         "//plugin/pkg/admission/noderestriction:all-srcs",
         "//plugin/pkg/admission/nodetaint:all-srcs",
         "//plugin/pkg/admission/podnodeselector:all-srcs",

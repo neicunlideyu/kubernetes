@@ -66,7 +66,7 @@ const DeletionTimeout = 2 * 60 * time.Second
 // disruption controller only handle pdb owned by deployment/ replicaset/ statefulset, pdb owned by crd
 // will be ignored and  fallback to set disruptionAllowed as zero. if pdb has this annotation, pdb controller
 // will skip sync it.
-const SkipSyncPdbAnnotation = "tce.kubernetes.io/skip-pdb-sync"
+const SkipSyncPDBAnnotation = "tce.kubernetes.io/skip-pdb-sync"
 
 const workerCount = 10
 
@@ -552,7 +552,8 @@ func (dc *DisruptionController) sync(key string) error {
 		return err
 	}
 
-	if pdb.Annotations != nil && pdb.Annotations[SkipSyncPdbAnnotation] == "true" {
+	// if pdb has SkipSyncPDBAnnotation, just ignore without setting disruptionAllowed to 0
+	if pdb.Annotations[SkipSyncPDBAnnotation] == "true" {
 		return nil
 	}
 	err = dc.trySync(pdb)

@@ -39,6 +39,7 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/admission/namespace/autoprovision"
 	"k8s.io/kubernetes/plugin/pkg/admission/namespace/exists"
 	"k8s.io/kubernetes/plugin/pkg/admission/noderestriction"
+	"k8s.io/kubernetes/plugin/pkg/admission/nodedeletion"
 	"k8s.io/kubernetes/plugin/pkg/admission/nodetaint"
 	"k8s.io/kubernetes/plugin/pkg/admission/podnodeselector"
 	"k8s.io/kubernetes/plugin/pkg/admission/podpreset"
@@ -72,6 +73,7 @@ var AllOrderedPlugins = []string{
 	podpreset.PluginName,                    // PodPreset
 	limitranger.PluginName,                  // LimitRanger
 	serviceaccount.PluginName,               // ServiceAccount
+	nodedeletion.PluginName,                 // NodeDeletion
 	noderestriction.PluginName,              // NodeRestriction
 	nodetaint.PluginName,                    // TaintNodesByCondition
 	alwayspullimages.PluginName,             // AlwaysPullImages
@@ -122,6 +124,7 @@ func RegisterAllAdmissionPlugins(plugins *admission.Plugins) {
 	limitranger.Register(plugins)
 	autoprovision.Register(plugins)
 	exists.Register(plugins)
+	nodedeletion.Register(plugins)
 	noderestriction.Register(plugins)
 	nodetaint.Register(plugins)
 	label.Register(plugins) // DEPRECATED, future PVs should not rely on labels for zone topology
@@ -162,6 +165,7 @@ func DefaultOffAdmissionPlugins() sets.String {
 		certsigning.PluginName,                  // CertificateSigning
 		certsubjectrestriction.PluginName,       // CertificateSubjectRestriction
 		defaultingressclass.PluginName,          //DefaultIngressClass
+		nodedeletion.PluginName,             //NodeDeletion
 	)
 
 	return sets.NewString(AllOrderedPlugins...).Difference(defaultOnPlugins)

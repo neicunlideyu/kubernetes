@@ -3,7 +3,7 @@ package dynamicpodspec
 import (
 	"context"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -47,8 +47,16 @@ func (p *podUpdater) update(pod *v1.Pod) error {
 	}
 	klog.V(2).Infof("Updating pod %s/%s", pod.Namespace, pod.Name)
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
-		pod, err = p.client.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
-		return err
+		spec := pod.Spec
+		_, updateErr := p.client.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
+		if updateErr == nil {
+			return nil
+		}
+		if updated, err := p.client.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{ResourceVersion: "0"}); err == nil {
+			pod = updated.DeepCopy()
+			pod.Spec = spec
+		}
+		return updateErr
 	})
 	return retryErr
 }

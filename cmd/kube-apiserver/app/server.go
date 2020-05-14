@@ -281,8 +281,19 @@ func CreateKubeAPIServerConfig(
 		return nil, nil, nil, nil, err
 	}
 
-	if _, port, err := net.SplitHostPort(s.Etcd.StorageConfig.Transport.ServerList[0]); err == nil && port != "0" && len(port) != 0 {
-		if err := utilwait.PollImmediate(etcdRetryInterval, etcdRetryLimit*etcdRetryInterval, preflight.EtcdConnection{ServerList: s.Etcd.StorageConfig.Transport.ServerList}.CheckEtcdServers); err != nil {
+	schemes := []string{"http", "https"}
+	etcdEndpoint := s.Etcd.StorageConfig.Transport.ServerList[0]
+	for _, scheme := range schemes {
+		etcdEndpoint = strings.TrimPrefix(etcdEndpoint, scheme+"://")
+	}
+
+	if _, port, err := net.SplitHostPort(etcdEndpoint); err == nil && port != "0" && len(port) != 0 {
+		etcdConnection := preflight.EtcdConnection{TransportConfig: s.Etcd.StorageConfig.Transport}
+		if err := utilwait.PollImmediate(etcdRetryInterval, etcdRetryLimit*etcdRetryInterval, etcdConnection.CheckEtcdServers); err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("error waiting for etcd connection: %v", err)
+		}
+
+		if err := utilwait.PollImmediate(etcdRetryInterval, etcdRetryLimit*etcdRetryInterval, etcdConnection.CheckSplitBrain); err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("error waiting for etcd connection: %v", err)
 		}
 	}

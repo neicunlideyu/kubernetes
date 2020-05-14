@@ -22,6 +22,7 @@ import (
 	"time"
 
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apiserver/pkg/storage/storagebackend"
 )
 
 func TestParseServerURIGood(t *testing.T) {
@@ -102,7 +103,7 @@ func TestCheckEtcdServers(t *testing.T) {
 func TestPollCheckServer(t *testing.T) {
 	err := utilwait.PollImmediate(1*time.Microsecond,
 		2*time.Microsecond,
-		EtcdConnection{ServerList: []string{""}}.CheckEtcdServers)
+		EtcdConnection{storagebackend.TransportConfig{ServerList: []string{""}}}.CheckEtcdServers)
 	if err == nil {
 		t.Fatal("expected check to time out")
 	}

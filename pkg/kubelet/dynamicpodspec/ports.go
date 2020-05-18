@@ -2,18 +2,25 @@ package dynamicpodspec
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
-	"k8s.io/klog"
 	"k8s.io/api/core/v1"
 	netutil "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
+)
+
+const (
+	autoPortRandom     = "random"
+	autoPortSequential = "sequential"
 )
 
 type assignPortAdmitHandler struct {
 	podAnnotation string
 	portRange     netutil.PortRange
 	podUpdater    PodUpdater
+	rander        *rand.Rand
 }
 
 func NewAssignPortHandler(podAnnotation string, portRange netutil.PortRange, podUpdater PodUpdater) *assignPortAdmitHandler {
@@ -21,16 +28,26 @@ func NewAssignPortHandler(podAnnotation string, portRange netutil.PortRange, pod
 		podAnnotation: podAnnotation,
 		portRange:     portRange,
 		podUpdater:    podUpdater,
+		rander:        rand.New(rand.NewSource(time.Now().Unix())),
 	}
 }
 
 func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdmitResult {
 	pod := attrs.Pod
-	_, autoport := pod.ObjectMeta.Annotations[w.podAnnotation]
-	if !autoport {
+	autoPortType, exists := pod.ObjectMeta.Annotations[w.podAnnotation]
+	if !exists {
 		return lifecycle.PodAdmitResult{
 			Admit: true,
 		}
+	}
+	var r *rand.Rand
+	switch autoPortType {
+	case autoPortSequential:
+		break
+	case autoPortRandom:
+		fallthrough
+	default:
+		r = w.rander
 	}
 
 	usedPorts, lastUsedPort := getUsedPorts(attrs.OtherPods...)
@@ -49,33 +66,8 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 		}
 	}
 
-	port, isAssigned := getAvaPort(usedPorts, w.portRange.Base, w.portRange.Size,
-		len(usedPorts), lastUsedPort, count)
-	if isAssigned {
-		for i := range pod.Spec.Containers {
-			for j := range pod.Spec.Containers[i].Ports {
-				if pod.Spec.Containers[i].Ports[j].HostPort != 0 {
-					continue
-				}
-				pod.Spec.Containers[i].Ports[j].HostPort = int32(port)
-				if pod.Spec.HostNetwork {
-					pod.Spec.Containers[i].Ports[j].ContainerPort = int32(port)
-				}
-				envVariable := v1.EnvVar{
-					Name:  fmt.Sprintf("PORT%d", j),
-					Value: fmt.Sprintf("%d", pod.Spec.Containers[i].Ports[j].HostPort),
-				}
-				pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, envVariable)
-				if j == 0 {
-					pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, v1.EnvVar{
-						Name:  "PORT",
-						Value: fmt.Sprintf("%d", pod.Spec.Containers[i].Ports[j].HostPort),
-					})
-				}
-				port = nextPort(port, w.portRange.Base, w.portRange.Size)
-			}
-		}
-	} else {
+	availablePorts, canAssigned := getAvailablePorts(usedPorts, w.portRange.Base, w.portRange.Size, lastUsedPort, count, r)
+	if !canAssigned {
 		klog.V(1).Infof("no hostport can be assigned")
 		return lifecycle.PodAdmitResult{
 			Admit:   false,
@@ -83,6 +75,32 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 			Message: "Host port is exhausted.",
 		}
 	}
+	portIndex := 0
+	for i := range pod.Spec.Containers {
+		for j := range pod.Spec.Containers[i].Ports {
+			if pod.Spec.Containers[i].Ports[j].HostPort != 0 {
+				continue
+			}
+			port := availablePorts[portIndex]
+			pod.Spec.Containers[i].Ports[j].HostPort = int32(port)
+			if pod.Spec.HostNetwork {
+				pod.Spec.Containers[i].Ports[j].ContainerPort = int32(port)
+			}
+			envVariable := v1.EnvVar{
+				Name:  fmt.Sprintf("PORT%d", j),
+				Value: fmt.Sprintf("%d", pod.Spec.Containers[i].Ports[j].HostPort),
+			}
+			pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, envVariable)
+			if j == 0 {
+				pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, v1.EnvVar{
+					Name:  "PORT",
+					Value: fmt.Sprintf("%d", pod.Spec.Containers[i].Ports[j].HostPort),
+				})
+			}
+			portIndex++
+		}
+	}
+
 	klog.V(5).Infof("%s/%s update %d ports", pod.Namespace, pod.Name, count)
 	w.podUpdater.NeedUpdate()
 	return lifecycle.PodAdmitResult{
@@ -90,33 +108,55 @@ func (w *assignPortAdmitHandler) Admit(attrs *lifecycle.PodAdmitAttributes) life
 	}
 }
 
-func nextPort(port, base, max int) int {
-	port++
-	if port >= base+max {
-		return (port-base)%max + base
+func getAvailablePorts(allocated map[int]bool, base, max, arrangeBase, portCount int, rander *rand.Rand) ([]int, bool) {
+	usedCount := len(allocated)
+	if usedCount >= max {
+		// all ports has been assigned
+		return nil, false
 	}
-	return port
-}
 
-func getAvaPort(allocated map[int]bool, base, max, count, arrangeBase, portCount int) (int, bool) {
-	if count >= max {
-		return 0, false
+	if allocated == nil {
+		allocated = map[int]bool{}
 	}
 
 	if arrangeBase < base || arrangeBase >= base+max {
 		arrangeBase = base
 	}
-Loop:
-	for i := 0; i < max; i++ {
-		for j := 0; j < portCount; j++ {
-			if allocated[(arrangeBase-base+i+j)%max+base] == true {
-				i += j
-				continue Loop
-			}
-		}
-		return (arrangeBase-base+i)%max + base, true
+	availablePortLength := max - len(allocated)
+	if availablePortLength < portCount {
+		// no enough ports
+		return nil, false
 	}
-	return 0, false
+	allPorts := make([]int, availablePortLength)
+	var offset = 0
+	var startIndex = 0
+	var findFirstPort = false
+	var result []int
+	for i := 0; i < availablePortLength; {
+		port := base + i + offset
+		if used := allocated[port]; used {
+			offset += 1
+			continue
+		}
+		if !findFirstPort && port >= arrangeBase {
+			startIndex = i
+			findFirstPort = true
+		}
+		allPorts[i] = port
+		i++
+	}
+
+	if rander != nil {
+		rander.Shuffle(availablePortLength, func(i, j int) {
+			allPorts[i], allPorts[j] = allPorts[j], allPorts[i]
+		})
+	}
+
+	for i := 0; i < portCount; i++ {
+		index := (i + startIndex) % availablePortLength
+		result = append(result, allPorts[index])
+	}
+	return result, true
 }
 
 func getScheduledTime(pod *v1.Pod) time.Time {

@@ -22,6 +22,7 @@ import (
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 
 	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
+	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
 // Cache is used for testing
@@ -100,7 +101,7 @@ func (c *Cache) DeleteNodeForDP(dpName string, nodeName string) error {
 	return nil
 }
 
-func (c *Cache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo) []string {
+func (c *Cache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo, refinedNodeLister nonnativeresourcelisters.RefinedNodeResourceLister) []string {
 	return nil
 }
 

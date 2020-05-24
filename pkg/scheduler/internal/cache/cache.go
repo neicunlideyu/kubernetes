@@ -276,9 +276,15 @@ func (cache *schedulerCache) Dump() *Dump {
 		assumedPods[k] = v
 	}
 
+	refinedNodes := make(map[string]*schedulernodeinfo.NodeRefinedResourceInfo, len(cache.refinedResourceNodes))
+	for k, v := range cache.refinedResourceNodes {
+		refinedNodes[k] = v.Clone()
+	}
+
 	return &Dump{
-		Nodes:       nodes,
-		AssumedPods: assumedPods,
+		Nodes:        nodes,
+		AssumedPods:  assumedPods,
+		RefinedNodes: refinedNodes,
 	}
 }
 

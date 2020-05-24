@@ -15,6 +15,7 @@ import (
 	"k8s.io/klog"
 
 	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
+	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
 func (cache *schedulerCache) AddOneVictim(deployName string) error {
@@ -307,7 +308,7 @@ func (cache *schedulerCache) addFilteredNodeForDeploy(deployName, nodeName strin
 }
 
 // TODO: processing in parallel
-func (cache *schedulerCache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo) []string {
+func (cache *schedulerCache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo, refinedNodeLister nonnativeresourcelisters.RefinedNodeResourceLister) []string {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -343,6 +344,7 @@ func (cache *schedulerCache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod,
 				filteredNodes[i] = nodeName
 				i++
 			}
+			klog.V(4).Infof("skipping pre-predicate checking, getting filtered nodes from cache")
 			return filteredNodes
 		}
 	}
@@ -354,6 +356,13 @@ func (cache *schedulerCache) FilterNodesByPodRefinedResourceRequest(pod *v1.Pod,
 		if node.Node() == nil {
 			continue
 		}
+
+		if cache.refinedResourceNodes[node.Node().Name] == nil && refinedNodeLister != nil {
+			if refinedNode, getErr := refinedNodeLister.Get(node.Node().Name); getErr == nil {
+				cache.addRefinedResourceNode(refinedNode)
+			}
+		}
+
 		if cache.refinedResourceNodes[node.Node().Name] != nil && NodeMatchedPodRequest(pod, cache.refinedResourceNodes[node.Node().Name]) {
 			filteredNodes[i] = node.Node().Name
 			i++

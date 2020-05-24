@@ -34,8 +34,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	appv1listers "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	policylisters "k8s.io/client-go/listers/policy/v1beta1"
+	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
 	"k8s.io/client-go/util/workqueue"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
@@ -51,6 +53,7 @@ import (
 	utiltrace "k8s.io/utils/trace"
 
 	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
+	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
 const (
@@ -136,6 +139,8 @@ type genericScheduler struct {
 	nodeInfoSnapshot            *internalcache.Snapshot
 	pvcLister                   corelisters.PersistentVolumeClaimLister
 	pdbLister                   policylisters.PodDisruptionBudgetLister
+	pcLister                    schedulingv1listers.PriorityClassLister
+	deployLister                appv1listers.DeploymentLister
 	disablePreemption           bool
 	percentageOfNodesToScore    int32
 	enableNonPreempting         bool
@@ -149,8 +154,8 @@ func (g *genericScheduler) snapshot() error {
 	return g.cache.UpdateSnapshot(g.nodeInfoSnapshot)
 }
 
-func (g *genericScheduler) PrePredicateFiltering(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo) []string {
-	return g.cache.FilterNodesByPodRefinedResourceRequest(pod, nodes)
+func (g *genericScheduler) PrePredicateFiltering(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo, lister nonnativeresourcelisters.RefinedNodeResourceLister) []string {
+	return g.cache.FilterNodesByPodRefinedResourceRequest(pod, nodes, lister)
 }
 
 // readyToBind checks if nominated node is ready to accept preemptor
@@ -227,6 +232,23 @@ func (g *genericScheduler) tryToSchedulePreemptor(ctx context.Context, prof *pro
 	}
 }
 
+func printPrePredicateDebugMessage(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo, nodeNames []string) {
+	if pod.Annotations != nil && len(pod.Annotations[util.PodDebugModeAnnotationKey]) > 0 {
+		nodeNamesBeforePrePredicate := ""
+		for _, node := range nodes {
+			if node.Node() != nil {
+				nodeNamesBeforePrePredicate = nodeNamesBeforePrePredicate + node.Node().Name + "; "
+			}
+		}
+		klog.Infof("nodes before pre-predicate: %v", nodeNamesBeforePrePredicate)
+		nodeNamesAfterPrePredicate := ""
+		for _, nodeName := range nodeNames {
+			nodeNamesAfterPrePredicate = nodeNamesAfterPrePredicate + nodeName + "; "
+		}
+		klog.Infof("nodes after pre-predicate: %v", nodeNamesAfterPrePredicate)
+	}
+}
+
 // Schedule tries to schedule the given pod to one of the nodes in the node list.
 // If it succeeds, it will return the name of the node.
 // If it fails, it will return a FitError error with reasons.
@@ -262,8 +284,8 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 		return g.tryToSchedulePreemptor(ctx, prof, state, pod)
 	}
 
-	// check cache nodes for dp first
-	dpName := getDpNameFromPod(pod)
+	// check cached nodes (for deployment) first
+	dpName := util.GetDeployNameFromPod(pod)
 	if len(dpName) > 0 {
 		nodesSet := g.cache.GetNodesForDP(dpName)
 		if nodesSet != nil && len(nodesSet) > 0 {
@@ -284,6 +306,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 				// delete the node anyway
 				g.cache.DeleteNodeForDP(dpName, nodeName)
 				if fits {
+					klog.V(4).Infof("pod is scheduled because of hitting deployment cache")
 					return ScheduleResult{
 						SuggestedHost:  nodeName,
 						EvaluatedNodes: 0,
@@ -352,20 +375,6 @@ func (g *genericScheduler) Extenders() []SchedulerExtender {
 	return g.extenders
 }
 
-func getDpNameFromPod(pod *v1.Pod) string {
-	var dpName string
-	podNames := strings.Split(pod.Name, "-")
-	if len(podNames) < 3 {
-		return ""
-	} else {
-		dpName = pod.Namespace + "/" + podNames[0]
-		for i := 1; i < len(podNames)-2; i++ {
-			dpName = dpName + "-" + podNames[i]
-		}
-		return dpName
-	}
-}
-
 // selectHost takes a prioritized list of nodes and then picks one
 // in a reservoir sampling manner from the nodes that had the highest score.
 func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeScoreList) (string, error) {
@@ -396,8 +405,8 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 	if pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAffinity != nil {
 		// do nothing here
 	} else {
-		// get dp name
-		dpName := getDpNameFromPod(pod)
+		// get deploy name
+		dpName := util.GetDeployNameFromPod(pod)
 		// podNames := strings.Split(pod.Name, "-")
 		if len(dpName) > 0 {
 			//dpName := pod.Namespace + "/" + podNames[0] + "-" + podNames[1]
@@ -451,7 +460,7 @@ func (g *genericScheduler) Preempt(ctx context.Context, prof *profile.Profile, s
 		return nil, nil, nil, ErrNoNodesAvailable
 	}
 
-	allNodes = schedulernodeinfo.GetFilteredNodes(allNodes, g.PrePredicateFiltering(pod, allNodes))
+	allNodes = schedulernodeinfo.GetFilteredNodes(allNodes, g.PrePredicateFiltering(pod, allNodes, g.refinedNodeResourceInformer.Lister()))
 
 	potentialNodes := nodesWherePreemptionMightHelp(allNodes, fitError)
 	if len(potentialNodes) == 0 {
@@ -466,7 +475,7 @@ func (g *genericScheduler) Preempt(ctx context.Context, prof *profile.Profile, s
 			return nil, nil, nil, err
 		}
 	}
-	nodeToVictims, err := g.selectNodesForPreemption(ctx, prof, state, pod, potentialNodes, pdbs)
+	nodeToVictims, err := g.selectNodesForPreemption(ctx, prof, state, pod, potentialNodes, pdbs, g.pcLister, g.deployLister)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -621,7 +630,9 @@ func (g *genericScheduler) findNodesThatPassFilters(ctx context.Context, prof *p
 		return nil, err
 	}
 
-	allNodes = schedulernodeinfo.GetFilteredNodes(allNodes, g.PrePredicateFiltering(pod, allNodes))
+	preFilteredNodeNames := g.PrePredicateFiltering(pod, allNodes, g.refinedNodeResourceInformer.Lister())
+	printPrePredicateDebugMessage(pod, allNodes, preFilteredNodeNames)
+	allNodes = schedulernodeinfo.GetFilteredNodes(allNodes, preFilteredNodeNames)
 
 	numNodesToFind := g.numFeasibleNodesToFind(int32(len(allNodes)))
 
@@ -1056,6 +1067,8 @@ func (g *genericScheduler) selectNodesForPreemption(
 	pod *v1.Pod,
 	potentialNodes []*schedulernodeinfo.NodeInfo,
 	pdbs []*policy.PodDisruptionBudget,
+	pcLister schedulingv1listers.PriorityClassLister,
+	deployLister appv1listers.DeploymentLister,
 ) (map[*v1.Node]*extenderv1.Victims, error) {
 	nodeToVictims := map[*v1.Node]*extenderv1.Victims{}
 	var resultLock sync.Mutex
@@ -1063,7 +1076,7 @@ func (g *genericScheduler) selectNodesForPreemption(
 	checkNode := func(i int) {
 		nodeInfoCopy := potentialNodes[i].Clone()
 		stateCopy := state.Clone()
-		pods, numPDBViolations, fits := g.selectVictimsOnNode(ctx, prof, stateCopy, pod, nodeInfoCopy, pdbs)
+		pods, numPDBViolations, fits := g.selectVictimsOnNode(ctx, prof, stateCopy, pod, nodeInfoCopy, pdbs, pcLister, deployLister)
 		if fits {
 			resultLock.Lock()
 			victims := extenderv1.Victims{
@@ -1146,6 +1159,8 @@ func (g *genericScheduler) selectVictimsOnNode(
 	pod *v1.Pod,
 	nodeInfo *schedulernodeinfo.NodeInfo,
 	pdbs []*policy.PodDisruptionBudget,
+	pcLister schedulingv1listers.PriorityClassLister,
+	deployLister appv1listers.DeploymentLister,
 ) ([]*v1.Pod, int, bool) {
 	var potentialVictims []*v1.Pod
 
@@ -1174,6 +1189,8 @@ func (g *genericScheduler) selectVictimsOnNode(
 	// only get pods who can be preempted
 	// which means pods in nodeinfo.pods() and whose nodename is not nil (not nominated pods)
 	for _, p := range nodeInfo.Pods() {
+		// TODO: combine these "if" condition below together
+
 		// if NodeName is not set, the pod is preemptor and is cached to nodeinfo in advance
 		// it can not be preempted
 		// TODO: need to revisit this later
@@ -1184,13 +1201,12 @@ func (g *genericScheduler) selectVictimsOnNode(
 		// TODO: should we consider that: if the pending pod is critical pod,
 		// we can violate the CanBePreempted value and Preemption scope.
 
-		// check the preemption scope
-		if !util.PreemptionScopeEqual(pod, p) {
+		// check if the pod in the specific node can be preempted
+		if !util.CanPodBePreempted(p, pcLister) {
 			continue
 		}
 
-		// check if the pod in the specific node can be preempted
-		if !util.CanPodBePreempted(p) {
+		if util.SingleDeploymentReplicas(p, deployLister) {
 			continue
 		}
 
@@ -1317,7 +1333,7 @@ func nodesWherePreemptionMightHelp(nodes []*schedulernodeinfo.NodeInfo, fitErr *
 		if fitErr.FilteredNodesStatuses[name].Code() == framework.UnschedulableAndUnresolvable {
 			continue
 		}
-		klog.V(3).Infof("Node %v is a potential node for preemption.", name)
+		klog.V(5).Infof("Node %v is a potential node for preemption.", name)
 		potentialNodes = append(potentialNodes, node)
 	}
 	return potentialNodes
@@ -1389,6 +1405,8 @@ func NewGenericScheduler(
 	extenders []SchedulerExtender,
 	pvcLister corelisters.PersistentVolumeClaimLister,
 	pdbLister policylisters.PodDisruptionBudgetLister,
+	pcLister schedulingv1listers.PriorityClassLister,
+	deployLister appv1listers.DeploymentLister,
 	disablePreemption bool,
 	percentageOfNodesToScore int32,
 	enableNonPreempting bool) ScheduleAlgorithm {
@@ -1400,6 +1418,8 @@ func NewGenericScheduler(
 		nodeInfoSnapshot:            nodeInfoSnapshot,
 		pvcLister:                   pvcLister,
 		pdbLister:                   pdbLister,
+		pcLister:                    pcLister,
+		deployLister:                deployLister,
 		disablePreemption:           disablePreemption,
 		percentageOfNodesToScore:    percentageOfNodesToScore,
 		enableNonPreempting:         enableNonPreempting,

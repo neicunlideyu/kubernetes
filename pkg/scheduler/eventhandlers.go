@@ -24,6 +24,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/informers"
@@ -206,6 +207,17 @@ func (sched *Scheduler) deletePodFromSchedulingQueue(obj interface{}) {
 		utilruntime.HandleError(fmt.Errorf("unable to handle object in %T: %T", sched, obj))
 		return
 	}
+
+	// pod is deleted between it being cached and being assigned
+	if len(pod.Status.NominatedNodeName) > 0 {
+		// get scheduled pod
+		// if err == nil, the pods is scheduled, do not delete it
+		_, err := sched.scheduledPodLister.Pods(pod.Namespace).Get(pod.Name)
+		if err != nil && errors.IsNotFound(err) {
+			sched.SchedulerCache.DeletePreemptor(pod)
+		}
+	}
+
 	klog.V(3).Infof("delete event for unscheduled pod %s/%s", pod.Namespace, pod.Name)
 	if err := sched.SchedulingQueue.Delete(pod); err != nil {
 		utilruntime.HandleError(fmt.Errorf("unable to dequeue %T: %v", obj, err))
@@ -504,7 +516,7 @@ func (sched *Scheduler) onRefinedNodeResourceUpdate(oldObj, newObj interface{}) 
 	}
 
 	if reflect.DeepEqual(oldRefinedNodeResource.Spec, newRefinedNodeResource.Spec) && reflect.DeepEqual(oldRefinedNodeResource.Status, newRefinedNodeResource.Status) {
-		klog.Infof("spec and status of old and new refined node resources are equal, skip cache update")
+		klog.V(6).Infof("spec and status of old and new refined node resources are equal, skip cache update")
 		return
 	}
 

@@ -116,6 +116,10 @@ type NetworkProperty map[string]sets.String
 
 type OtherProperty map[string]sets.String
 
+func (nrri *NodeRefinedResourceInfo) GetNodeName() string {
+	return nrri.nodeName
+}
+
 func (nrri *NodeRefinedResourceInfo) GetCPUProperties() map[string]sets.String {
 	return nrri.cpuProperty
 }
@@ -142,4 +146,72 @@ func (nrri *NodeRefinedResourceInfo) GetOtherProperties() map[string]sets.String
 
 func (nrri *NodeRefinedResourceInfo) GetNumericResourceProperties() map[string]int64 {
 	return nrri.numericResourceProperty
+}
+
+func (nrri *NodeRefinedResourceInfo) Clone() *NodeRefinedResourceInfo {
+	refinedNodeInfo := &NodeRefinedResourceInfo{
+		nodeName:        nrri.nodeName,
+		cpuProperty:     make(map[string]sets.String),
+		gpuProperty:     make(map[string]sets.String),
+		diskProperty:    make(map[string]sets.String),
+		memoryProperty:  make(map[string]sets.String),
+		networkProperty: make(map[string]sets.String),
+		otherProperty:   make(map[string]sets.String),
+
+		numericResourceProperty: make(map[string]int64),
+	}
+
+	for k, v := range nrri.GetCPUProperties() {
+		if refinedNodeInfo.cpuProperty[k] == nil {
+			refinedNodeInfo.cpuProperty[k] = sets.NewString(v.List()...)
+		} else {
+			refinedNodeInfo.cpuProperty[k].Insert(v.List()...)
+		}
+	}
+
+	for k, v := range nrri.GetGPUProperties() {
+		if refinedNodeInfo.gpuProperty[k] == nil {
+			refinedNodeInfo.gpuProperty[k] = sets.NewString(v.List()...)
+		} else {
+			refinedNodeInfo.gpuProperty[k].Insert(v.List()...)
+		}
+	}
+
+	for k, v := range nrri.GetDiskProperties() {
+		if refinedNodeInfo.diskProperty[k] == nil {
+			refinedNodeInfo.diskProperty[k] = sets.NewString(v.List()...)
+		} else {
+			refinedNodeInfo.diskProperty[k].Insert(v.List()...)
+		}
+	}
+
+	for k, v := range nrri.GetMemoryProperties() {
+		if refinedNodeInfo.memoryProperty[k] == nil {
+			refinedNodeInfo.memoryProperty[k] = sets.NewString(v.List()...)
+		} else {
+			refinedNodeInfo.memoryProperty[k].Insert(v.List()...)
+		}
+	}
+
+	for k, v := range nrri.GetNetworkProperties() {
+		if refinedNodeInfo.networkProperty[k] == nil {
+			refinedNodeInfo.networkProperty[k] = sets.NewString(v.List()...)
+		} else {
+			refinedNodeInfo.networkProperty[k].Insert(v.List()...)
+		}
+	}
+
+	for k, v := range nrri.GetOtherProperties() {
+		if refinedNodeInfo.otherProperty[k] == nil {
+			refinedNodeInfo.otherProperty[k] = sets.NewString(v.List()...)
+		} else {
+			refinedNodeInfo.otherProperty[k].Insert(v.List()...)
+		}
+	}
+
+	for k, v := range nrri.GetNumericResourceProperties() {
+		refinedNodeInfo.numericResourceProperty[k] = v
+	}
+
+	return refinedNodeInfo
 }

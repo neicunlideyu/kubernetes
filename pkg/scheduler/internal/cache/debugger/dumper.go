@@ -45,8 +45,13 @@ func (d *CacheDumper) DumpAll() {
 func (d *CacheDumper) dumpNodes() {
 	dump := d.cache.Dump()
 	klog.Info("Dump of cached NodeInfo")
+	klog.Infof("%v nodes are cached in scheduler cache", len(dump.Nodes))
 	for name, nodeInfo := range dump.Nodes {
 		klog.Info(d.printNodeInfo(name, nodeInfo))
+	}
+	klog.Infof("%v refined-node-resources are cached in scheduler cache", len(dump.RefinedNodes))
+	for _, refinedNodeInfo := range dump.RefinedNodes {
+		klog.Info(printRefinedNodeInfo(refinedNodeInfo))
 	}
 }
 
@@ -77,6 +82,14 @@ func (d *CacheDumper) printNodeInfo(name string, n *schedulernodeinfo.NodeInfo) 
 			nodeData.WriteString(printPod(p))
 		}
 	}
+	return nodeData.String()
+}
+
+func printRefinedNodeInfo(refinedNode *schedulernodeinfo.NodeRefinedResourceInfo) string {
+	var nodeData strings.Builder
+	nodeData.WriteString(fmt.Sprintf("\nNode name: %+v\nCPU Properties: %+v\nMemory Properties:%+v\nNumeric Properties: %+v\n",
+		refinedNode.GetNodeName(), refinedNode.GetCPUProperties(), refinedNode.GetMemoryProperties(), refinedNode.GetNumericResourceProperties()))
+
 	return nodeData.String()
 }
 

@@ -35,6 +35,7 @@ import (
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/scheduling"
 	"k8s.io/kubernetes/pkg/features"
+	"k8s.io/kubernetes/pkg/scheduler/util"
 )
 
 const (
@@ -169,10 +170,11 @@ func (p *Plugin) admitPod(a admission.Attributes) error {
 	if operation == admission.Create {
 		var priority int32
 		var preemptionPolicy *apiv1.PreemptionPolicy
+		canBePreempted := "false"
 		if len(pod.Spec.PriorityClassName) == 0 {
 			var err error
 			var pcName string
-			pcName, priority, preemptionPolicy, err = p.getDefaultPriority()
+			pcName, priority, preemptionPolicy, canBePreempted, err = p.getDefaultPriority()
 			if err != nil {
 				return fmt.Errorf("failed to get default priority class: %v", err)
 			}
@@ -190,6 +192,9 @@ func (p *Plugin) admitPod(a admission.Attributes) error {
 
 			priority = pc.Value
 			preemptionPolicy = pc.PreemptionPolicy
+			if pc.Annotations != nil && pc.Annotations[util.CanBePreemptedAnnotationKey] == "true" {
+				canBePreempted = "true"
+			}
 		}
 		// if the pod contained a priority that differs from the one computed from the priority class, error
 		if pod.Spec.Priority != nil && *pod.Spec.Priority != priority {
@@ -207,6 +212,10 @@ func (p *Plugin) admitPod(a admission.Attributes) error {
 				pod.Spec.PreemptionPolicy = &corePolicy
 			}
 		}
+		if pod.Annotations == nil {
+			pod.Annotations = make(map[string]string)
+		}
+		pod.Annotations[util.CanBePreemptedAnnotationKey] = canBePreempted
 	}
 	return nil
 }
@@ -252,14 +261,19 @@ func (p *Plugin) getDefaultPriorityClass() (*schedulingv1.PriorityClass, error) 
 	return defaultPC, nil
 }
 
-func (p *Plugin) getDefaultPriority() (string, int32, *apiv1.PreemptionPolicy, error) {
+func (p *Plugin) getDefaultPriority() (string, int32, *apiv1.PreemptionPolicy, string, error) {
+	canBePreempted := "false"
+	// get default priority class
 	dpc, err := p.getDefaultPriorityClass()
 	if err != nil {
-		return "", 0, nil, err
+		return "", 0, nil, canBePreempted, err
 	}
 	if dpc != nil {
-		return dpc.Name, dpc.Value, dpc.PreemptionPolicy, nil
+		if dpc.Annotations != nil && dpc.Annotations[util.CanBePreemptedAnnotationKey] == "true" {
+			canBePreempted = "true"
+		}
+		return dpc.Name, dpc.Value, dpc.PreemptionPolicy, canBePreempted, nil
 	}
 	preemptLowerPriority := apiv1.PreemptLowerPriority
-	return "", int32(scheduling.DefaultPriorityWhenNoDefaultClassExists), &preemptLowerPriority, nil
+	return "", int32(scheduling.DefaultPriorityWhenNoDefaultClassExists), &preemptLowerPriority, canBePreempted, nil
 }

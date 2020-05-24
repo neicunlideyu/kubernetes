@@ -26,6 +26,7 @@ go_library(
         "//staging/src/k8s.io/apimachinery/pkg/util/wait:go_default_library",
         "//staging/src/k8s.io/apiserver/pkg/util/feature:go_default_library",
         "//staging/src/k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1:go_default_library",
+        "//staging/src/k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1:go_default_library",
         "//vendor/k8s.io/klog:go_default_library",
     ],
 )

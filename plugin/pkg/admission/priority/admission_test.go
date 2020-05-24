@@ -278,7 +278,7 @@ func TestDefaultPriority(t *testing.T) {
 		if err := addPriorityClasses(ctrl, test.classesBefore); err != nil {
 			t.Errorf("Test %q: unable to add object to informer: %v", test.name, err)
 		}
-		pcName, defaultPriority, _, err := ctrl.getDefaultPriority()
+		pcName, defaultPriority, _, _, err := ctrl.getDefaultPriority()
 		if err != nil {
 			t.Errorf("Test %q: unexpected error while getting default priority: %v", test.name, err)
 		}
@@ -296,7 +296,7 @@ func TestDefaultPriority(t *testing.T) {
 		if err := addPriorityClasses(ctrl, test.classesAfter); err != nil {
 			t.Errorf("Test %q: unable to add object to informer: %v", test.name, err)
 		}
-		pcName, defaultPriority, _, err = ctrl.getDefaultPriority()
+		pcName, defaultPriority, _, _, err = ctrl.getDefaultPriority()
 		if err != nil {
 			t.Errorf("Test %q: unexpected error while getting default priority: %v", test.name, err)
 		}

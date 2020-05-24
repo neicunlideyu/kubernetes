@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/kubernetes/pkg/scheduler/util"
 	"math/rand"
 	"os"
 	"time"
@@ -34,6 +33,7 @@ import (
 	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
@@ -49,6 +49,7 @@ import (
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
+	"k8s.io/kubernetes/pkg/scheduler/util"
 
 	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
@@ -127,6 +128,8 @@ type Scheduler struct {
 	Profiles profile.Map
 
 	scheduledPodsHasSynced func() bool
+
+	scheduledPodLister corelisters.PodLister
 }
 
 // Cache returns the cache in scheduler for test to check the data in scheduler.
@@ -465,15 +468,19 @@ func (sched *Scheduler) recordSchedulingFailure(prof *profile.Profile, podInfo *
 }
 
 func podHasLeastPriority(pod *v1.Pod) bool {
-	if pod.Spec.Priority == nil {
+	if pod.Spec.Priority == nil || *pod.Spec.Priority == 0 {
+		// we don't have a customized PriorityClass whose priority value is 0
+		// so we reach here only when the pod's priority is not set
 		return true
 	}
 
-	if pod.Spec.Priority != nil {
-		if *pod.Spec.Priority == 0 && !util.HasResource(pod, util.ResourceGPU) {
-			return true
+	/*
+		if pod.Spec.Priority != nil {
+			if *pod.Spec.Priority == 0 && !util.HasResource(pod, util.ResourceGPU) {
+				return true
+			}
 		}
-	}
+	*/
 
 	return false
 }
@@ -532,7 +539,7 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 		sched.SchedulerCache.CachePreemptor(preemptorCopy)
 
 		for _, victim := range victims {
-			if err := sched.podPreemptor.deletePod(victim); err != nil {
+			if err = sched.podPreemptor.deletePod(victim); err != nil {
 				klog.Errorf("Error preempting pod %v/%v: %v", victim.Namespace, victim.Name, err)
 				return "", err
 			}
@@ -543,10 +550,10 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 			prof.Recorder.Eventf(victim, preemptor, v1.EventTypeNormal, "Preempted", "Preempting", "Preempted by %v/%v on node %v", preemptor.Namespace, preemptor.Name, nodeName)
 
 			// cache victims for deployment
-			deployName := util.GetDeployNameFromPod(victim)
+			/*deployName := util.GetDeployNameFromPod(victim)
 			if len(deployName) > 0 {
 				sched.SchedulerCache.AddOneVictim(deployName)
-			}
+			}*/
 		}
 		metrics.PreemptionVictims.Observe(float64(len(victims)))
 	} else {
@@ -712,39 +719,46 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		// will fit due to the preemption. It is also possible that a different pod will schedule
 		// into the resources that were preempted, but this is harmless.
 		if fitError, ok := err.(*core.FitError); ok {
+			// add this for online debug
+			if pod.Annotations != nil && len(pod.Annotations[util.PodDebugModeAnnotationKey]) > 0 {
+				klog.Infof("pod is in debug mode, print detailed predicate result")
+				klog.Error(fitError)
+			}
+
 			if sched.DisablePreemption {
 				klog.V(3).Infof("Pod priority feature is not enabled or preemption is disabled by scheduler configuration." +
 					" No preemption is performed.")
 			} else {
-				/*
-					// if pod is victim, do not perform preemption for it, let SRE platform add machines directly
-					deployName := util.GetDeployNameFromPod(pod)
-					if len(deployName) > 0 && sched.config.SchedulerCache.IsVictims(deployName) {
-						// pod is victim, do not perform preemption for it
-						// send out event and let SRE platform add machines
+				// if pod is victim, do not perform preemption for it, let SRE platform add machines directly
+				/*deployName := util.GetDeployNameFromPod(pod)
+				if len(deployName) > 0 && sched.config.SchedulerCache.IsVictims(deployName) {
+					// pod is victim, do not perform preemption for it
+					// send out event and let SRE platform add machines
 
-						// TODO: need to revisit this later
-						// the pod sending out the SRE event may be placed to existing machine(there may be some pods being killed),
-						// the machine added by SRE platform may be consumed by other pods
-						// do we need to send out event continuously ?
-						// if so, what action should SRE platform take ?
-						// SRE may add machines when having gathered 10 events ?
-						podC := pod.DeepCopy()
-						message := "SRE Platform Notice: victim: " + podC.Name + ", deployment name: " + deployName + ", can not be scheduled, please add machines for it. "
-						message = message + "Refined resources requirement: " + util.PodRefinedResourceRequestToString(podC.Annotations)
-						sched.config.Recorder.Event(podC, v1.EventTypeWarning, "FailedScheduling", message)
+					// TODO: need to revisit this later
+					// the pod sending out the SRE event may be placed to existing machine(there may be some pods being killed),
+					// the machine added by SRE platform may be consumed by other pods
+					// do we need to send out event continuously ?
+					// if so, what action should SRE platform take ?
+					// SRE may add machines when having gathered 10 events ?
+					podC := pod.DeepCopy()
+					message := "SRE Platform Notice: victim: " + podC.Name + ", deployment name: " + deployName + ", can not be scheduled, please add machines for it. "
+					message = message + "Refined resources requirement: " + util.PodRefinedResourceRequestToString(podC.Annotations)
+					sched.config.Recorder.Event(podC, v1.EventTypeWarning, "FailedScheduling", message)
 
-						// Pod did not fit anywhere, so it is counted as a failure.
-						metrics.PodScheduleFailures.Inc()
+					// Pod did not fit anywhere, so it is counted as a failure.
+					metrics.PodScheduleFailures.Inc()
 
-						return
-					}
-				*/
+					return
+				}*/
 
 				preemptionStartTime := time.Now()
 				victimNodeName, preemptErr := sched.preempt(schedulingCycleCtx, prof, state, pod, fitError)
 				if preemptErr == nil && len(victimNodeName) > 0 {
 					metrics.PreemptionSuccessCounter.Inc()
+				} else {
+					podC := pod.DeepCopy()
+					prof.Recorder.Eventf(podC, nil, v1.EventTypeWarning, "FailedPreempting", "Preempting failed for pod", "")
 				}
 				metrics.PreemptionAttempts.Inc()
 				metrics.SchedulingAlgorithmPreemptionEvaluationDuration.Observe(metrics.SinceInSeconds(preemptionStartTime))
@@ -780,11 +794,11 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		sched.SchedulerCache.DeletePreemptorFromCacheOnly(pod)
 	}
 
-	deployName := util.GetDeployNameFromPod(pod)
-	if len(deployName) > 0 && sched.SchedulerCache.IsVictims(deployName) {
+	/*deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) > 0 && sched.config.SchedulerCache.IsVictims(deployName) {
 		// pod is victim, and it is scheduled successfully, subtract it from cache
-		sched.SchedulerCache.SubtractOneVictim(deployName)
-	}
+		sched.config.SchedulerCache.SubtractOneVictim(deployName)
+	}*/
 
 	metrics.SchedulingAlgorithmLatency.Observe(metrics.SinceInSeconds(start))
 	podToUpdate := pod.DeepCopy()
@@ -827,6 +841,19 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	// This allows us to keep scheduling without waiting on binding to occur.
 	assumedPodInfo := podInfo.DeepCopy()
 	assumedPod := assumedPodInfo.Pod
+
+	assumedPodCPUAddErr, _ := sched.AddCPUMemoryResource(assumedPod, scheduleResult.SuggestedHost)
+	if assumedPodCPUAddErr != nil {
+		klog.Errorf("Failed to schedule: %v, fail to add cpu resource for socket policy.", assumedPod)
+		sched.Error(assumedPodInfo, assumedPodCPUAddErr)
+		prof.Recorder.Eventf(assumedPod, nil, v1.EventTypeWarning, "FailedScheduling", "%v", assumedPodCPUAddErr.Error())
+		sched.podConditionUpdater.update(assumedPod, &v1.PodCondition{
+			Type:   v1.PodScheduled,
+			Status: v1.ConditionFalse,
+			Reason: "Unschedulable",
+		})
+		return
+	}
 
 	// Assume volumes first before assuming the pod.
 	//

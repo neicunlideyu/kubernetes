@@ -21,6 +21,7 @@ import (
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 
 	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
+	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
 // Cache collects pods' information and provides node-level aggregated information.
@@ -116,7 +117,7 @@ type Cache interface {
 
 	GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo
 
-	FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo) []string
+	FilterNodesByPodRefinedResourceRequest(pod *v1.Pod, nodes []*schedulernodeinfo.NodeInfo, refinedNodeLister nonnativeresourcelisters.RefinedNodeResourceLister) []string
 
 	AddRefinedResourceNode(refinedNodeResource *nnrv1alpha1.RefinedNodeResource) error
 
@@ -134,6 +135,8 @@ type Cache interface {
 
 	DeletePreemptorFromCacheOnly(preemptor *v1.Pod) error
 
+	// comment victim relevant codes out first,
+	// delete them if removing the preemption restriction(victims can not preempt other pods) is ok
 	IsVictims(deployName string) bool
 
 	AddOneVictim(deployName string) error
@@ -143,6 +146,7 @@ type Cache interface {
 
 // Dump is a dump of the cache state.
 type Dump struct {
-	AssumedPods map[string]bool
-	Nodes       map[string]*schedulernodeinfo.NodeInfo
+	AssumedPods  map[string]bool
+	Nodes        map[string]*schedulernodeinfo.NodeInfo
+	RefinedNodes map[string]*schedulernodeinfo.NodeRefinedResourceInfo
 }

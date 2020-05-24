@@ -819,6 +819,8 @@ func TestGenericScheduler(t *testing.T) {
 				[]SchedulerExtender{},
 				pvcLister,
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
+				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
+				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false)
@@ -848,7 +850,7 @@ func makeScheduler(nodes []*v1.Node) *genericScheduler {
 		nil,
 		internalqueue.NewSchedulingQueue(nil),
 		emptySnapshot,
-		nil, nil, nil, false,
+		nil, nil, nil, nil, nil, false,
 		schedulerapi.DefaultPercentageOfNodesToScore, false)
 	cache.UpdateSnapshot(s.(*genericScheduler).nodeInfoSnapshot)
 	return s.(*genericScheduler)
@@ -1141,6 +1143,8 @@ func TestZeroRequest(t *testing.T) {
 				nil,
 				emptySnapshot,
 				[]SchedulerExtender{},
+				nil,
+				nil,
 				nil,
 				nil,
 				false,
@@ -1624,6 +1628,8 @@ func TestSelectNodesForPreemption(t *testing.T) {
 				[]SchedulerExtender{},
 				nil,
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
+				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
+				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				false)
@@ -1641,7 +1647,7 @@ func TestSelectNodesForPreemption(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			nodeToPods, err := g.selectNodesForPreemption(context.Background(), prof, state, test.pod, nodeInfos, test.pdbs)
+			nodeToPods, err := g.selectNodesForPreemption(context.Background(), prof, state, test.pod, nodeInfos, test.pdbs, nil, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -1921,7 +1927,7 @@ func TestPickOneNodeForPreemption(t *testing.T) {
 			if !preFilterStatus.IsSuccess() {
 				t.Errorf("Unexpected preFilterStatus: %v", preFilterStatus)
 			}
-			candidateNodes, _ := g.selectNodesForPreemption(context.Background(), prof, state, test.pod, nodeInfos, nil)
+			candidateNodes, _ := g.selectNodesForPreemption(context.Background(), prof, state, test.pod, nodeInfos, nil, nil, nil)
 			node := pickOneNodeForPreemption(candidateNodes)
 			found := false
 			for _, nodeName := range test.expected {
@@ -2422,6 +2428,8 @@ func TestPreempt(t *testing.T) {
 				extenders,
 				informerFactory.Core().V1().PersistentVolumeClaims().Lister(),
 				informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister(),
+				informerFactory.Scheduling().V1().PriorityClasses().Lister(),
+				informerFactory.Apps().V1().Deployments().Lister(),
 				false,
 				schedulerapi.DefaultPercentageOfNodesToScore,
 				true)

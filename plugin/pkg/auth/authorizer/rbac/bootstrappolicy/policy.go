@@ -537,9 +537,12 @@ func ClusterRoles() []rbacv1.ClusterRole {
 		// non native resource rules
 		rbacv1helpers.NewRule(Read...).Groups(nonNativeResourceGroup).Resources("refinednoderesources").RuleOrDie(),
 
+		// priorityclass rules
+		rbacv1helpers.NewRule("get", "list", "watch").Groups("scheduling.k8s.io").Resources("priorityclasses").RuleOrDie(),
+
 		// Fundamental resources
 		rbacv1helpers.NewRule(Read...).Groups(legacyGroup).Resources("nodes").RuleOrDie(),
-		rbacv1helpers.NewRule("get", "list", "watch", "delete").Groups(legacyGroup).Resources("pods").RuleOrDie(),
+		rbacv1helpers.NewRule("get", "list", "update", "watch", "delete").Groups(legacyGroup).Resources("pods").RuleOrDie(),
 		rbacv1helpers.NewRule("create").Groups(legacyGroup).Resources("pods/binding", "bindings").RuleOrDie(),
 		rbacv1helpers.NewRule("patch", "update").Groups(legacyGroup).Resources("pods/status").RuleOrDie(),
 		// Things that select pods

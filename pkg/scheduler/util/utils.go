@@ -24,6 +24,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appv1listers "k8s.io/client-go/listers/apps/v1"
+	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
 	"k8s.io/klog"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
@@ -111,30 +113,6 @@ func GetPodAntiAffinityTerms(podAntiAffinity *v1.PodAntiAffinity) (terms []v1.Po
 		//}
 	}
 	return terms
-}
-
-// CanPodBePreempted indicates whether the pod can be preempted
-func CanPodBePreempted(pod *v1.Pod) bool {
-	//if pod.Spec.CanBePreempted == nil {
-	//	return false
-	//}
-	//
-	//return *pod.Spec.CanBePreempted
-	return false
-}
-
-// PreemptionScopeEqual compares the preemption scope label
-// return true if they are equal
-func PreemptionScopeEqual(pod1, pod2 *v1.Pod) bool {
-	if pod1.Annotations == nil || pod2.Annotations == nil {
-		return false
-	}
-
-	if len(pod1.Annotations[PreemptionScopeKey]) == 0 || len(pod2.Annotations[PreemptionScopeKey]) == 0 {
-		return false
-	}
-
-	return pod1.Annotations[PreemptionScopeKey] == pod2.Annotations[PreemptionScopeKey]
 }
 
 // HigherPriorityPod return true when priority of the first pod is higher than
@@ -374,10 +352,10 @@ func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod) bool {
 
 	// large package pods can preempt small package pods
 	// at the first stage,
-	// if preemptor's cpu request >= pod * 2 or ( preemptor's cpu request >= pod &&  preemptor memory request >= pod * 4), then, pod can be preempted
+	// if preemptor's cpu request > pod or ( preemptor's cpu request == pod &&  preemptor memory request > pod), then, pod can be preempted
 	// TODO: refine this logic
 	// only when both pod and preemptor's NumericResourcesRequests are not nil, we do the following check
-	/*if pod.Annotations != nil && len(pod.Annotations[NumericResourcesRequests]) > 0 &&
+	if pod.Annotations != nil && len(pod.Annotations[NumericResourcesRequests]) > 0 &&
 		preemptor.Annotations != nil && len(preemptor.Annotations[NumericResourcesRequests]) > 0 {
 		podCPURequest, podMemRequest, _, podErr := ParseCPUMemNetworkRequest(pod.Annotations[NumericResourcesRequests])
 		preemptorCPURequest, preemptorMemRequest, _, preemptorErr := ParseCPUMemNetworkRequest(preemptor.Annotations[NumericResourcesRequests])
@@ -386,16 +364,25 @@ func CanPodBePreemptedAtSamePriority(pod, preemptor *v1.Pod) bool {
 			return false
 		}
 
-		// if preemptor's cpu request >= pod cpu request * 2, pod can be preempted
-		if podCPURequest != 0 && preemptorCPURequest != 0 && preemptorCPURequest >= podCPURequest * 2 {
-			return true
+		// we assume cpu and memory are positive correlation in packages
+		// podCPURequest > preemptorCPURequest && podMemRequest < preemptorMemRequest should not happen
+		if preemptorCPURequest != podCPURequest {
+			if preemptorCPURequest > podCPURequest {
+				return true
+			} else {
+				return false
+			}
 		}
 
-		// if preemptor's cpu request >= pod and preemptor's memory request >= pod memory request * 4, pod can be preempted
-		if preemptorCPURequest >= podCPURequest && podMemRequest != 0 && preemptorMemRequest != 0 && preemptorMemRequest >= podMemRequest * 4 {
-			return true
+		if preemptorMemRequest != podMemRequest {
+			if preemptorMemRequest > podMemRequest {
+				return true
+			} else {
+				return false
+			}
 		}
-	}*/
+
+	}
 
 	// TODO: add more checks
 
@@ -501,8 +488,40 @@ const (
 	MemoryRefineResourceKey = "memory"
 	NumaRefinedResourceKey  = "numa"
 	NBWRefinedResourceKey   = "nbw"
+
+	SocketToCpuKey            = "sockettocpu"
+	PodDebugModeAnnotationKey = "debug-mode"
+
+	CanBePreemptedAnnotationKey = "tce.kubernetes.io/can-be-preempted"
 )
 
-const (
-	SocketToCpuKey = "sockettocpu"
-)
+// CanPodBePreempted indicates whether the pod can be preempted
+func CanPodBePreempted(pod *v1.Pod, pcLister schedulingv1listers.PriorityClassLister) bool {
+	if pod.Annotations == nil || len(pod.Annotations[CanBePreemptedAnnotationKey]) == 0 {
+		if len(pod.Spec.PriorityClassName) > 0 {
+			sc, err := pcLister.Get(pod.Spec.PriorityClassName)
+			if err != nil {
+				klog.Infof("get sc error: %v", err)
+				return false
+			}
+			return sc.Annotations != nil && sc.Annotations[CanBePreemptedAnnotationKey] == "true"
+		}
+	}
+
+	return pod.Annotations != nil && pod.Annotations[CanBePreemptedAnnotationKey] == "true"
+}
+
+func SingleDeploymentReplicas(pod *v1.Pod, deployLister appv1listers.DeploymentLister) bool {
+	deployName := GetDeployNameFromPod(pod)
+	if len(deployName) == 0 {
+		return false
+	}
+
+	deploy, err := deployLister.Deployments(pod.Namespace).Get(deployName)
+	if err != nil {
+		klog.Errorf("get deployment error: %+v", err)
+		return false
+	}
+
+	return deploy != nil && *deploy.Spec.Replicas == 1
+}

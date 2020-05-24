@@ -28,7 +28,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -208,20 +210,23 @@ func (c *Configurator) create() (*Scheduler, error) {
 		extenders,
 		c.informerFactory.Core().V1().PersistentVolumeClaims().Lister(),
 		GetPodDisruptionBudgetLister(c.informerFactory),
+		c.informerFactory.Scheduling().V1().PriorityClasses().Lister(),
+		c.informerFactory.Apps().V1().Deployments().Lister(),
 		c.disablePreemption,
 		c.percentageOfNodesToScore,
 		c.enableNonPreempting,
 	)
 
 	return &Scheduler{
-		SchedulerCache:  c.schedulerCache,
-		Algorithm:       algo,
-		Profiles:        profiles,
-		NextPod:         internalqueue.MakeNextPodFunc(podQueue),
-		Error:           MakeDefaultErrorFunc(c.client, podQueue, c.schedulerCache),
-		StopEverything:  c.StopEverything,
-		VolumeBinder:    c.volumeBinder,
-		SchedulingQueue: podQueue,
+		SchedulerCache:     c.schedulerCache,
+		Algorithm:          algo,
+		Profiles:           profiles,
+		NextPod:            internalqueue.MakeNextPodFunc(podQueue),
+		Error:              MakeDefaultErrorFunc(c.client, podQueue, c.schedulerCache),
+		StopEverything:     c.StopEverything,
+		VolumeBinder:       c.volumeBinder,
+		SchedulingQueue:    podQueue,
+		scheduledPodLister: assignedPodLister{c.podInformer.Lister()},
 	}, nil
 }
 
@@ -543,4 +548,63 @@ func GetPodDisruptionBudgetLister(informerFactory informers.SharedInformerFactor
 		return informerFactory.Policy().V1beta1().PodDisruptionBudgets().Lister()
 	}
 	return nil
+}
+
+// assignedPodLister filters the pods returned from a PodLister to
+// only include those that have a node name set.
+type assignedPodLister struct {
+	corelisters.PodLister
+}
+
+// List lists all Pods in the indexer for a given namespace.
+func (l assignedPodLister) List(selector labels.Selector) ([]*v1.Pod, error) {
+	list, err := l.PodLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]*v1.Pod, 0, len(list))
+	for _, pod := range list {
+		if len(pod.Spec.NodeName) > 0 {
+			filtered = append(filtered, pod)
+		}
+	}
+	return filtered, nil
+}
+
+// List lists all Pods in the indexer for a given namespace.
+func (l assignedPodLister) Pods(namespace string) corelisters.PodNamespaceLister {
+	return assignedPodNamespaceLister{l.PodLister.Pods(namespace)}
+}
+
+// assignedPodNamespaceLister filters the pods returned from a PodNamespaceLister to
+// only include those that have a node name set.
+type assignedPodNamespaceLister struct {
+	corelisters.PodNamespaceLister
+}
+
+// List lists all Pods in the indexer for a given namespace.
+func (l assignedPodNamespaceLister) List(selector labels.Selector) (ret []*v1.Pod, err error) {
+	list, err := l.PodNamespaceLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]*v1.Pod, 0, len(list))
+	for _, pod := range list {
+		if len(pod.Spec.NodeName) > 0 {
+			filtered = append(filtered, pod)
+		}
+	}
+	return filtered, nil
+}
+
+// Get retrieves the Pod from the indexer for a given namespace and name.
+func (l assignedPodNamespaceLister) Get(name string) (*v1.Pod, error) {
+	pod, err := l.PodNamespaceLister.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	if len(pod.Spec.NodeName) > 0 {
+		return pod, nil
+	}
+	return nil, apierrors.NewNotFound(schema.GroupResource{Resource: string(v1.ResourcePods)}, name)
 }

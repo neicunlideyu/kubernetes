@@ -63,6 +63,10 @@ import (
 // clock (via ntp for example). Otherwise PodDisruptionBudget controller may not provide enough
 // protection against unwanted pod disruptions.
 const DeletionTimeout = 2 * 60 * time.Second
+// disruption controller only handle pdb owned by deployment/ replicaset/ statefulset, pdb owned by crd
+// will be ignored and  fallback to set disruptionAllowed as zero. if pdb has this annotation, pdb controller
+// will skip sync it.
+const SkipSyncPdbAnnotation = "tce.kubernetes.io/skip-pdb-sync"
 
 const workerCount = 10
 
@@ -548,6 +552,9 @@ func (dc *DisruptionController) sync(key string) error {
 		return err
 	}
 
+	if pdb.Annotations != nil && pdb.Annotations[SkipSyncPdbAnnotation] == "true" {
+		return nil
+	}
 	err = dc.trySync(pdb)
 	// If the reason for failure was a conflict, then allow this PDB update to be
 	// requeued without triggering the failSafe logic.

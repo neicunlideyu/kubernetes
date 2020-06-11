@@ -73,6 +73,7 @@ func NewInTreeRegistry() framework.Registry {
 		nodelabel.Name:                             nodelabel.New,
 		serviceaffinity.Name:                       serviceaffinity.New,
 		noderesources.MostGPUAllocatedName:         noderesources.NewMostGPUAllocated,
+		noderesources.MostSocketAllocatedName:      noderesources.NewMostSocketAllocated,
 		labelspreading.Name:                        labelspreading.New,
 		hostunique.Name:                            hostunique.New,
 		queuesort.Name:                             queuesort.New,

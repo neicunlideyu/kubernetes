@@ -67,6 +67,9 @@ const (
 	// LeastRequestedPriority defines the name of prioritizer function that prioritize nodes by least
 	// requested utilization.
 	LeastRequestedPriority = "LeastRequestedPriority"
+	// MostSocketRequestedPriority defines the name of prioritizer function that prioritize nodes by most
+	// Socket request.
+	MostSocketRequestedPriority = "MostSocketRequestedPriority"
 	// BalancedResourceAllocation defines the name of prioritizer function that prioritizes nodes
 	// to help achieve balanced resource usage.
 	BalancedResourceAllocation = "BalancedResourceAllocation"
@@ -418,6 +421,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 	registry.registerPriorityConfigProducer(MostGPURequestedPriority,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Score = appendToPluginSet(plugins.Score, noderesources.MostGPUAllocatedName, &args.Weight)
+			return
+		})
+	registry.registerPriorityConfigProducer(MostSocketRequestedPriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, noderesources.MostSocketAllocatedName, &args.Weight)
 			return
 		})
 

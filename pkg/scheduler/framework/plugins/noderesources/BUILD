@@ -8,6 +8,7 @@ go_library(
         "least_allocated.go",
         "most_allocated.go",
         "most_gpu_allocated.go",
+        "most_socket_allocated.go",
         "requested_to_capacity_ratio.go",
         "resource_allocation.go",
         "resource_limits.go",
@@ -16,6 +17,7 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/api/pod:go_default_library",
         "//pkg/apis/core/v1/helper:go_default_library",
         "//pkg/features:go_default_library",
         "//pkg/scheduler/apis/config:go_default_library",

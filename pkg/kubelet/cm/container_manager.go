@@ -25,6 +25,7 @@ import (
 	internalapi "k8s.io/cri-api/pkg/apis"
 	podresourcesapi "k8s.io/kubernetes/pkg/kubelet/apis/podresources/v1alpha1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	evictionapi "k8s.io/kubernetes/pkg/kubelet/eviction/api"
@@ -78,7 +79,7 @@ type ContainerManager interface {
 	// and inactive device plugin resources previously registered on the node.
 	GetDevicePluginResourceCapacity() (v1.ResourceList, v1.ResourceList, []string)
 
-	GetDevicePluginRefinedResource() (map[string]string, map[string]string, map[string]string)
+	GetDevicePluginRefinedResource() devicemanager.DevicePluginHeterogenousResource
 
 	// UpdateQOSCgroups performs housekeeping updates to ensure that the top
 	// level QoS containers have their desired state in a thread-safe way

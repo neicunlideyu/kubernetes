@@ -60,7 +60,7 @@ type Manager interface {
 
 	GetWatcherHandler() cache.PluginHandler
 
-	GetRefinedResource() (map[string]string, map[string]string, map[string]string)
+	GetRefinedResource() DevicePluginHeterogenousResource
 
 	// GetDevices returns information about the devices assigned to pods and containers
 	GetDevices(podUID, containerName string) []*podresourcesapi.ContainerDevices

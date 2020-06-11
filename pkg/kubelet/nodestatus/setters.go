@@ -25,6 +25,7 @@ import (
 	"reflect"
 	goruntime "runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,6 +49,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/volume"
+	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
@@ -417,13 +419,17 @@ func formatDiscreteResourceProperties(propertiesArr ...[]nonnativeresource.Discr
 }
 
 // Collect refined resource and create crd
-func RefinedResourceInfo(refinedResourceClient nonnativeresourceclient.Interface, refinedResourceInformer nonnativeresourceinformer.RefinedNodeResourceInformer, devicePluginHeterogenousResourceFunc func() (map[string]string, map[string]string, map[string]string)) Setter {
+func RefinedResourceInfo(refinedResourceClient nonnativeresourceclient.Interface, refinedResourceInformer nonnativeresourceinformer.RefinedNodeResourceInformer, devicePluginHeterogenousResourceFunc func() devicemanager.DevicePluginHeterogenousResource) Setter {
 	var Seperator = ";"
 	return func(node *v1.Node) error {
 		if refinedResourceClient == nil {
 			return nil
 		}
-		refinedNumericResources, refinedDiscreteResources, refinedDiscreteResourcesClass := devicePluginHeterogenousResourceFunc()
+		devicePluginHeterogenousResource := devicePluginHeterogenousResourceFunc()
+		refinedNumericResources := devicePluginHeterogenousResource.RefinedNumericResources
+		refinedDiscreteResources := devicePluginHeterogenousResource.RefinedDiscreteResources
+		refinedDiscreteResourcesClass := devicePluginHeterogenousResource.RefinedDiscreteResourcesClass
+		refinedNumaTopologyStatus := devicePluginHeterogenousResource.RefinedNumaTopologyStatus
 		refinedNodeResource := &nonnativeresource.RefinedNodeResource{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: node.GetName(),
@@ -478,6 +484,48 @@ func RefinedResourceInfo(refinedResourceClient nonnativeresourceclient.Interface
 			refinedNodeResource.Spec.DiscreteResource.NetworkProperties,
 			refinedNodeResource.Spec.DiscreteResource.OtherProperties,
 		)
+
+		for _, resourceValue := range refinedNumaTopologyStatus {
+			numaTopologys := strings.Split(resourceValue, Seperator)
+			parseError := false
+			for _, numa := range numaTopologys {
+				socketID := ""
+				podName := ""
+				numaSlice := strings.Split(numa, ":")
+				if len(numaSlice) < 2 {
+					klog.Errorf("Error 1: Fail to parse numa status: %s", numa)
+					parseError = true
+					break
+				}
+				numaStatus := numaSlice[1]
+				numaStatusSlice := strings.Split(numaStatus, ",")
+				if len(numaStatusSlice) < 1 {
+					klog.Errorf("Error 2: Fail to parse numa status: %s", numaStatus)
+					parseError = true
+					break
+				} else if len(numaStatusSlice) >= 2 {
+					podName = numaStatusSlice[1]
+				}
+				socketID = numaStatusSlice[0]
+				socketIDInt, err := strconv.Atoi(socketID)
+				if err != nil {
+					klog.Errorf("Fail to parse socket id %s: %v", socketID, err)
+					parseError = true
+					break
+				}
+				if len(refinedNodeResource.Status.NumaStatus.Sockets) <= socketIDInt {
+					sockets := refinedNodeResource.Status.NumaStatus.Sockets
+					refinedNodeResource.Status.NumaStatus.Sockets = append(sockets, nonnativeresource.SocketStatus{})
+				}
+				numas := refinedNodeResource.Status.NumaStatus.Sockets[socketIDInt].Numas
+				refinedNodeResource.Status.NumaStatus.Sockets[socketIDInt].Numas = append(numas, nonnativeresource.NumaStatus{
+					User: podName,
+				})
+			}
+			if parseError {
+				refinedNodeResource.Status.NumaStatus = nonnativeresource.NumaTopologyStatus{}
+			}
+		}
 
 		oldObj, err := refinedResourceInformer.Lister().Get(node.GetName())
 		if err != nil {

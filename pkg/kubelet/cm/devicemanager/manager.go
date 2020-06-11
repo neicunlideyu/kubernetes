@@ -102,6 +102,8 @@ type ManagerImpl struct {
 
 	refinedDiscreteResourcesClass map[string]string
 
+	refinedNumaTopologyStatus map[string]string
+
 	// allocatedDevices contains allocated deviceIds, keyed by resourceName.
 	allocatedDevices map[string]sets.String
 
@@ -120,6 +122,13 @@ type ManagerImpl struct {
 	devicesToReuse PodReusableDevices
 }
 
+type DevicePluginHeterogenousResource struct {
+	RefinedNumericResources       map[string]string
+	RefinedDiscreteResources      map[string]string
+	RefinedDiscreteResourcesClass map[string]string
+	RefinedNumaTopologyStatus     map[string]string
+}
+
 type endpointInfo struct {
 	e    endpoint
 	opts *pluginapi.DevicePluginOptions
@@ -134,6 +143,7 @@ const (
 	refinedResource      = "bytedance.com/refined"
 	numericResourceType  = "Numeric"
 	discreteResourceType = "Discrete"
+	numaTopologyType     = "NumaTopology"
 	seperator            = ";"
 )
 
@@ -176,7 +186,7 @@ func newManagerImpl(socketPath string, numaNodeInfo cputopology.NUMANodeInfo, to
 		topologyAffinityStore: topologyAffinityStore,
 		devicesToReuse:        make(PodReusableDevices),
 	}
-	manager.refinedNumericResources, manager.refinedDiscreteResources, manager.refinedDiscreteResourcesClass = manager.getRefinedResourceFromStateFile(refinedResourceStateFile)
+	manager.refinedNumericResources, manager.refinedDiscreteResources, manager.refinedDiscreteResourcesClass, manager.refinedNumaTopologyStatus = manager.getRefinedResourceFromStateFile(refinedResourceStateFile)
 	manager.callback = manager.genericDeviceUpdateCallback
 
 	// The following structures are populated with real implementations in manager.Start()
@@ -199,7 +209,7 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 			klog.Errorf("Fail to write RefinedNodeResource state file: %v", err)
 		}
 		m.mutex.Lock()
-		m.refinedNumericResources, m.refinedDiscreteResources, m.refinedDiscreteResourcesClass = getRefinedResourceFromDevices(devices)
+		m.refinedNumericResources, m.refinedDiscreteResources, m.refinedDiscreteResourcesClass, m.refinedNumaTopologyStatus = getRefinedResourceFromDevices(devices)
 		m.mutex.Unlock()
 		return
 	}
@@ -608,21 +618,15 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 	return capacity, allocatable, deletedResources.UnsortedList()
 }
 
-//func (m *ManagerImpl) GetRefinedResource() DevicePluginHeterogenousResource {
-//	m.mutex.Lock()
-//	defer m.mutex.Unlock()
-//	return DevicePluginHeterogenousResource{
-//		RefinedNumericResources:       m.refinedNumericResources,
-//		RefinedDiscreteResources:      m.refinedDiscreteResources,
-//		RefinedDiscreteResourcesClass: m.refinedDiscreteResourcesClass,
-//		RefinedNumaTopologyStatus:     m.refinedNumaTopologyStatus,
-//	}
-//}
-
-func (m *ManagerImpl) GetRefinedResource() (map[string]string, map[string]string, map[string]string) {
+func (m *ManagerImpl) GetRefinedResource() DevicePluginHeterogenousResource {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	return m.refinedNumericResources, m.refinedDiscreteResources, m.refinedDiscreteResourcesClass
+	return DevicePluginHeterogenousResource{
+		RefinedNumericResources:       m.refinedNumericResources,
+		RefinedDiscreteResources:      m.refinedDiscreteResources,
+		RefinedDiscreteResourcesClass: m.refinedDiscreteResourcesClass,
+		RefinedNumaTopologyStatus:     m.refinedNumaTopologyStatus,
+	}
 }
 
 // Checkpoints device to container allocation information to disk.
@@ -1063,26 +1067,27 @@ func (m *ManagerImpl) writeRefinedResourceToStateFile(devices []pluginapi.Device
 	return nil
 }
 
-func (m *ManagerImpl) getRefinedResourceFromStateFile(path string) (map[string]string, map[string]string, map[string]string) {
+func (m *ManagerImpl) getRefinedResourceFromStateFile(path string) (map[string]string, map[string]string, map[string]string, map[string]string) {
 	devBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		klog.Infof("Fail to read device info from refined resource state file: %v", err)
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	var devices []pluginapi.Device
 	if err = json.Unmarshal(devBytes, &devices); err != nil {
 		klog.Errorf("Fail to unmarshal devices info: %v", err)
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	return getRefinedResourceFromDevices(devices)
 }
 
-func getRefinedResourceFromDevices(devices []pluginapi.Device) (map[string]string, map[string]string, map[string]string) {
+func getRefinedResourceFromDevices(devices []pluginapi.Device) (map[string]string, map[string]string, map[string]string, map[string]string) {
 	refinedNumericResources := make(map[string]string)
 	refinedDiscreteResources := make(map[string]string)
 	refinedDiscreteResourcesClass := make(map[string]string)
+	refinedNumaTopologyStatus := make(map[string]string)
 	for _, dev := range devices {
 		switch dev.GetProperties()["type"] {
 		case numericResourceType:
@@ -1090,7 +1095,9 @@ func getRefinedResourceFromDevices(devices []pluginapi.Device) (map[string]strin
 		case discreteResourceType:
 			refinedDiscreteResources[dev.GetID()] = dev.GetProperties()["list"]
 			refinedDiscreteResourcesClass[dev.GetID()] = dev.GetProperties()["class"]
+		case numaTopologyType:
+			refinedNumaTopologyStatus[dev.GetID()] = dev.GetProperties()["list"]
 		}
 	}
-	return refinedNumericResources, refinedDiscreteResources, refinedDiscreteResourcesClass
+	return refinedNumericResources, refinedDiscreteResources, refinedDiscreteResourcesClass, refinedNumaTopologyStatus
 }

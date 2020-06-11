@@ -37,6 +37,7 @@ import (
 	"k8s.io/utils/mount"
 	utilpath "k8s.io/utils/path"
 
+	cadvisorapi "github.com/google/cadvisor/info/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -981,7 +982,7 @@ func (cm *containerManagerImpl) GetDevicePluginResourceCapacity() (v1.ResourceLi
 	return cm.deviceManager.GetCapacity()
 }
 
-func (cm *containerManagerImpl) GetDevicePluginRefinedResource() (map[string]string, map[string]string, map[string]string) {
+func (cm *containerManagerImpl) GetDevicePluginRefinedResource() devicemanager.DevicePluginHeterogenousResource {
 	return cm.deviceManager.GetRefinedResource()
 }
 

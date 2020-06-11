@@ -86,6 +86,21 @@ type DiscreteResourcePropertyPattern struct {
 type RefinedNodeResourceStatus struct {
 	// numeric resources
 	NumericResource NumericResourceProperties `json:"numericResource,omitempty"`
+
+	NumaStatus NumaTopologyStatus `json:"numaStatus"`
+}
+
+type NumaTopologyStatus struct {
+	Sockets []SocketStatus `json:"sockets,omitempty"`
+}
+
+type SocketStatus struct {
+	Numas []NumaStatus `json:"numas,omitempty"`
+}
+
+type NumaStatus struct {
+	// podName
+	User string `json:"user,omitempty"`
 }
 
 // NumericResourceProperties is the set of numeric properties

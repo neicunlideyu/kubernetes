@@ -64,8 +64,8 @@ func (h *ManagerStub) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 	return nil, nil, []string{}
 }
 
-func (h *ManagerStub) GetRefinedResource() (map[string]string, map[string]string, map[string]string) {
-	return nil, nil, nil
+func (h *ManagerStub) GetRefinedResource() DevicePluginHeterogenousResource {
+	return DevicePluginHeterogenousResource{}
 }
 
 // GetWatcherHandler returns plugin watcher interface

@@ -455,3 +455,27 @@ func ChooseBindAddressForInterface(intfName string) (net.IP, error) {
 	}
 	return nil, fmt.Errorf("unable to select an IP from %s network interface", intfName)
 }
+
+// return ipv4 and ipv6 family ip address in one function
+// only when the dual-stack ip both return no address, it will return error
+func GetDualStackIPFromHostInterfaces() (net.IP, net.IP, error) {
+	var ipv4, ipv6 net.IP
+	// try to get ipv4 address first
+	hostIP, err := chooseHostInterface(preferIPv4)
+	if err != nil {
+		return nil, nil, err
+	}
+	// is ipv4
+	if hostIP.To4() != nil {
+		ipv4 = hostIP
+		// try again to get ipv6 address
+		hostIPv6, err := chooseHostInterface(preferIPv6)
+		if err == nil && hostIPv6.To4() == nil {
+			ipv6 = hostIPv6
+		}
+		return ipv4, ipv6, nil
+	}
+
+	// only ipv6
+	return nil, hostIP, nil
+}

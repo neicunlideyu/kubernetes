@@ -19,6 +19,7 @@ package kubelet
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
@@ -78,6 +79,7 @@ import (
 	dynamic "k8s.io/kubernetes/pkg/kubelet/dynamicpodspec"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
+	"k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip"
 	"k8s.io/kubernetes/pkg/kubelet/images"
 	"k8s.io/kubernetes/pkg/kubelet/kubeletconfig"
 	"k8s.io/kubernetes/pkg/kubelet/kuberuntime"
@@ -890,6 +892,9 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 
 	criticalPodAdmissionHandler := preemption.NewCriticalPodAdmissionHandler(klet.GetActivePods, killPodNow(klet.podWorkers, kubeDeps.Recorder), kubeDeps.Recorder)
 	klet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(klet.getNodeAnyWay, criticalPodAdmissionHandler, klet.containerManager.UpdatePluginResources))
+
+	// add host-dual-stack-ip-pod-annotations handler
+	klet.admitHandlers.AddPodAdmitHandler(hostdualstackip.NewPodAnnotationsAdmitHandler())
 
 	podUpdater := dynamic.NewPodUpdater(klet.kubeClient)
 	assignQosPort := dynamic.NewAssignPortHandler(utilpod.PodAutoPortHighPriorityAnnotation, klet.guaranteedQosHostPortRange, podUpdater)
@@ -1727,6 +1732,8 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 	// Fetch the pull secrets for the pod
 	pullSecrets := kl.getPullSecretsForPod(pod)
 
+	prePodIPv6Annotations, _ := pod.Annotations[hostdualstackip.PodIPv6AnnotationKey]
+
 	// Call the container runtime's SyncPod callback
 	result := kl.containerRuntime.SyncPod(pod, podStatus, pullSecrets, kl.backOff)
 	kl.reasonCache.Update(pod.UID, result)
@@ -1741,6 +1748,21 @@ func (kl *Kubelet) syncPod(o syncPodOptions) error {
 		}
 
 		return nil
+	}
+
+	// patch podIPv6 annotations if it has changed
+	if podIPv6, _ := pod.Annotations[hostdualstackip.PodIPv6AnnotationKey]; podIPv6 != prePodIPv6Annotations {
+		newMap := map[string]interface{}{
+			"metadata": map[string]map[string]string{
+				"annotations": {
+					hostdualstackip.PodIPv6AnnotationKey: podIPv6,
+				},
+			},
+		}
+		patchContents, _ := json.Marshal(newMap)
+		if _, err := kl.kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patchContents, metav1.PatchOptions{}); err != nil {
+			klog.Errorf("SyncPod Patch PodIPv6 Annotations Error : %v", err)
+		}
 	}
 
 	return nil
@@ -2120,6 +2142,16 @@ func (kl *Kubelet) HandlePodAdditions(pods []*v1.Pod) {
 				continue
 			}
 		}
+
+		// when pass admit, patch pod dual-stack ip address annotations to api-server synchronously.
+		// !!! try to make sure this patch happens before the container-creating jobs start
+		err := patchDualStackIPAddressInPodAnnotations(kl, pod)
+		if err != nil {
+			klog.V(2).Infof("Failed to sync dual-stack ip info to pod annotations %q, err: %v", format.Pod(pod), err)
+			kl.rejectPod(pod, "PatchDualStackIpAddrAnnotationsError", err.Error())
+			continue
+		}
+
 		mirrorPod, _ := kl.podManager.GetMirrorPodByPod(pod)
 		kl.dispatchWork(pod, kubetypes.SyncPodCreate, mirrorPod, start)
 		kl.probeManager.AddPod(pod)
@@ -2358,4 +2390,30 @@ func getStreamingConfig(kubeCfg *kubeletconfiginternal.KubeletConfiguration, kub
 		}
 	}
 	return config
+}
+
+func patchDualStackIPAddressInPodAnnotations(kl *Kubelet, pod *v1.Pod) error {
+	ipv4, ipv6 := pod.ObjectMeta.Annotations[hostdualstackip.HostIPv4AnnotationKey], pod.ObjectMeta.Annotations[hostdualstackip.HostIPv6AnnotationKey]
+
+	// add empty value check here.
+	// in case that the caller is from syncLoopIteration's kubetypes.RESTORE caused HandlePodAdditions or any others.
+	if ipv4 == "" && ipv6 == "" {
+		v4, v6, err := netutil.GetDualStackIPFromHostInterfaces()
+		if err != nil {
+			return err
+		}
+		ipv4, ipv6 = v4.String(), v6.String()
+	}
+
+	newMap := map[string]interface{}{
+		"metadata": map[string]map[string]string{
+			"annotations": {
+				hostdualstackip.HostIPv4AnnotationKey: ipv4,
+				hostdualstackip.HostIPv6AnnotationKey: ipv6,
+			},
+		},
+	}
+	patchContents, _ := json.Marshal(newMap)
+	_, err := kl.kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.Background(), pod.Name, types.StrategicMergePatchType, patchContents, metav1.PatchOptions{})
+	return err
 }

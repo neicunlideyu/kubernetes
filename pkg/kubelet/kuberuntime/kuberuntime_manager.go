@@ -19,6 +19,7 @@ package kuberuntime
 import (
 	"errors"
 	"fmt"
+	"k8s.io/kubernetes/pkg/kubelet/externals/hostdualstackip"
 	"os"
 	goruntime "runtime"
 	"time"
@@ -765,8 +766,17 @@ func (m *kubeGenericRuntimeManager) SyncPod(pod *v1.Pod, podStatus *kubecontaine
 	// instead of trying to figure out if we have 0 < len(podIPs)
 	// everytime, we short circuit it here
 	podIP := ""
+	podIPv6 := ""
 	if len(podIPs) != 0 {
 		podIP = podIPs[0]
+	}
+	if len(podIPs) > 1 {
+		podIPv6 = podIPs[1]
+	}
+
+	// set pod ipv6 to annotations for the next generateContainerConfig process
+	if prePodIPv6, ok := pod.Annotations[hostdualstackip.PodIPv6AnnotationKey]; !ok || prePodIPv6 != podIPv6 {
+		pod.Annotations[hostdualstackip.PodIPv6AnnotationKey] = podIPv6
 	}
 
 	// Get podSandboxConfig for containers to start.

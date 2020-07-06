@@ -19,6 +19,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"k8s.io/kubernetes/pkg/scheduler/listers"
 	"math"
 	"math/rand"
 	"sort"
@@ -45,7 +46,6 @@ import (
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
-	"k8s.io/kubernetes/pkg/scheduler/listers"
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
@@ -159,7 +159,7 @@ func (g *genericScheduler) PrePredicateFiltering(pod *v1.Pod, nodes []*scheduler
 }
 
 // readyToBind checks if nominated node is ready to accept preemptor
-func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) bool {
+func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, nodeRefinedResourceInfo *schedulernodeinfo.NodeRefinedResourceInfo) bool {
 	// preemptor is added to the requested resource of nodeinfo when CachePreemptor
 	// so if requested <= allocatable, it is ready to bind
 	requested := nodeInfo.RequestedResource()
@@ -189,6 +189,10 @@ func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) bool {
 		}
 	}
 
+	if !internalcache.NumaTopologyMatchedPodRequest(preemptor, nodeRefinedResourceInfo, nodeInfo) {
+		return false
+	}
+
 	return true
 }
 
@@ -196,8 +200,9 @@ func readyToBind(preemptor *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) bool {
 func (g *genericScheduler) tryToSchedulePreemptor(ctx context.Context, prof *profile.Profile, state *framework.CycleState, preemptor *v1.Pod) (result ScheduleResult, err error) {
 	if nodeInfo, err := g.nodeInfoSnapshot.Get(preemptor.Status.NominatedNodeName); err == nil {
 		// predicate for preemptor
+		refinedNode := g.cache.GetRefinedResourceNode(preemptor.Status.NominatedNodeName)
 		if g.cache.PreemptorStillHaveChance(preemptor) {
-			if readyToBind(preemptor, nodeInfo) {
+			if readyToBind(preemptor, nodeInfo, refinedNode) {
 				return ScheduleResult{
 					SuggestedHost:  preemptor.Status.NominatedNodeName,
 					EvaluatedNodes: 1,
@@ -214,6 +219,7 @@ func (g *genericScheduler) tryToSchedulePreemptor(ctx context.Context, prof *pro
 				state,
 				preemptor,
 				nodeInfo,
+				refinedNode,
 			)
 			if fits {
 				return ScheduleResult{
@@ -300,6 +306,7 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 						state,
 						pod,
 						nodeInfo,
+						g.cache.GetRefinedResourceNode(nodeName),
 					)
 				}
 
@@ -663,7 +670,7 @@ func (g *genericScheduler) findNodesThatPassFilters(ctx context.Context, prof *p
 		// We check the nodes starting from where we left off in the previous scheduling cycle,
 		// this is to make sure all nodes have the same chance of being examined across pods.
 		nodeInfo := allNodes[(g.nextStartNodeIndex+i)%len(allNodes)]
-		fits, status, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo)
+		fits, status, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo, g.cache.GetRefinedResourceNode(nodeInfo.Node().Name))
 		if err != nil {
 			errCh.SendErrorWithCancel(err, cancel)
 			return
@@ -782,13 +789,20 @@ func (g *genericScheduler) podPassesFiltersOnNode(
 	state *framework.CycleState,
 	pod *v1.Pod,
 	info *schedulernodeinfo.NodeInfo,
+	nodeRefinedResourceInfo *schedulernodeinfo.NodeRefinedResourceInfo,
 ) (bool, *framework.Status, error) {
 	var status *framework.Status
+	matchNumaTopology := internalcache.NumaTopologyMatchedPodRequest(pod, nodeRefinedResourceInfo, info)
 
 	stateToUse := state
 	nodeInfoToUse := info
 
 	statusMap := prof.RunFilterPlugins(ctx, stateToUse, pod, nodeInfoToUse)
+
+	if !matchNumaTopology {
+		statusMap["MatchNumaTopology"] = framework.NewStatus(framework.UnschedulableAndUnresolvable, "node(s) not match numa topology")
+	}
+
 	status = statusMap.Merge()
 	if !status.IsSuccess() && !status.IsUnschedulable() {
 		return false, status, status.AsError()
@@ -1172,8 +1186,11 @@ func (g *genericScheduler) selectVictimsOnNode(
 	cache internalcache.Cache,
 ) ([]*v1.Pod, int, bool) {
 	var potentialVictims []*v1.Pod
+	nodeRefinedResourceInfo := cache.GetRefinedResourceNode(nodeInfo.Node().GetName())
+	nodeRefinedResourceInfoCopy := nodeRefinedResourceInfo.Clone()
 
 	removePod := func(rp *v1.Pod) error {
+		nodeRefinedResourceInfoCopy.RemovePod(pod)
 		if err := nodeInfo.RemovePod(rp); err != nil {
 			return err
 		}
@@ -1184,6 +1201,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 		return nil
 	}
 	addPod := func(ap *v1.Pod) error {
+		nodeRefinedResourceInfoCopy.AddPod(pod)
 		nodeInfo.AddPod(ap)
 		status := prof.RunPreFilterExtensionAddPod(ctx, state, pod, ap, nodeInfo)
 		if !status.IsSuccess() {
@@ -1262,7 +1280,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 	// inter-pod affinity to one or more victims, but we have decided not to
 	// support this case for performance reasons. Having affinity to lower
 	// priority pods is not a recommended configuration anyway.
-	if fits, _, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo); !fits {
+	if fits, _, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo, nodeRefinedResourceInfoCopy); !fits {
 		if err != nil {
 			klog.Warningf("Encountered error while selecting victims on node %v: %v", nodeInfo.Node().Name, err)
 		}
@@ -1296,7 +1314,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 	for _, p := range violatingVictims {
 		addPod(p)
 	}
-	if fits, _, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo); !fits {
+	if fits, _, err := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo, nodeRefinedResourceInfoCopy); !fits {
 		if err != nil {
 			klog.Warningf("Encountered error while selecting victims on node %v: %v", nodeInfo.Node().Name, err)
 		}
@@ -1308,7 +1326,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 		if err := addPod(p); err != nil {
 			return false, err
 		}
-		fits, _, _ := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo)
+		fits, _, _ := g.podPassesFiltersOnNode(ctx, prof, state, pod, nodeInfo, nodeRefinedResourceInfoCopy)
 		if !fits {
 			if err := removePod(p); err != nil {
 				return false, err

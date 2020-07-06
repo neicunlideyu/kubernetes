@@ -3,6 +3,7 @@ package nodeinfo
 import (
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -27,6 +28,13 @@ type NodeRefinedResourceInfo struct {
 	numericResourceProperty map[string]int64
 	// allocatableResources v1.ResourceList
 	// requestedResources   v1.ResourceList
+	numaTopologyStatus NumaTopologyStatus
+}
+
+type NumaTopologyStatus struct {
+	freeNumasInSockets map[int]sets.Int
+	numasOfPods        map[string]sets.Int
+	socketsOfNumas     map[int]int
 }
 
 const (
@@ -49,6 +57,11 @@ func NewNodeRefinedResourceInfo(nodeName string) *NodeRefinedResourceInfo {
 		otherProperty:   make(map[string]sets.String),
 
 		numericResourceProperty: make(map[string]int64),
+		numaTopologyStatus: NumaTopologyStatus{
+			freeNumasInSockets: make(map[int]sets.Int),
+			numasOfPods:        make(map[string]sets.Int),
+			socketsOfNumas:     make(map[int]int),
+		},
 	}
 }
 
@@ -104,6 +117,52 @@ func (nrri *NodeRefinedResourceInfo) AddNumericResourceProperties(propertyKey st
 	}
 }
 
+func (nrri *NodeRefinedResourceInfo) AddNumaTopologyStatus(socketID, numaID int, podName string) {
+	if nrri.numaTopologyStatus.freeNumasInSockets[socketID] == nil {
+		nrri.numaTopologyStatus.freeNumasInSockets[socketID] = sets.NewInt()
+	}
+	nrri.numaTopologyStatus.freeNumasInSockets[socketID].Insert(numaID)
+	nrri.numaTopologyStatus.socketsOfNumas[numaID] = socketID
+	if podName != "" {
+		if nrri.numaTopologyStatus.numasOfPods[podName] == nil {
+			nrri.numaTopologyStatus.numasOfPods[podName] = sets.NewInt()
+		}
+		nrri.numaTopologyStatus.numasOfPods[podName].Insert(numaID)
+		nrri.numaTopologyStatus.freeNumasInSockets[socketID].Delete(numaID)
+	}
+}
+
+func (nrri *NodeRefinedResourceInfo) RemovePod(pod *v1.Pod) error {
+	if nrri == nil {
+		return nil
+	}
+	numaTopology := nrri.GetNumaTopologyStatus()
+	numaTopologyCopy := numaTopology.Clone()
+	numas := numaTopologyCopy.GetNumasOfPods()[pod.GetName()]
+	socketsOfNumas := numaTopologyCopy.GetSocketsOfNumas()
+	for _, numa := range numas.List() {
+		socket := socketsOfNumas[numa]
+		numaTopologyCopy.freeNumasInSockets[socket].Insert(numa)
+	}
+	nrri.numaTopologyStatus = numaTopologyCopy
+	return nil
+}
+
+func (nrri *NodeRefinedResourceInfo) AddPod(pod *v1.Pod) {
+	if nrri == nil {
+		return
+	}
+	numaTopology := nrri.GetNumaTopologyStatus()
+	numaTopologyCopy := numaTopology.Clone()
+	numas := numaTopologyCopy.GetNumasOfPods()[pod.GetName()]
+	socketsOfNumas := numaTopologyCopy.GetSocketsOfNumas()
+	for _, numa := range numas.List() {
+		socket := socketsOfNumas[numa]
+		numaTopologyCopy.freeNumasInSockets[socket].Delete(numa)
+	}
+	nrri.numaTopologyStatus = numaTopologyCopy
+}
+
 type CPUProperty map[string]sets.String
 
 type GPUProperty map[string]sets.String
@@ -149,6 +208,9 @@ func (nrri *NodeRefinedResourceInfo) GetNumericResourceProperties() map[string]i
 }
 
 func (nrri *NodeRefinedResourceInfo) Clone() *NodeRefinedResourceInfo {
+	if nrri == nil {
+		return nil
+	}
 	refinedNodeInfo := &NodeRefinedResourceInfo{
 		nodeName:        nrri.nodeName,
 		cpuProperty:     make(map[string]sets.String),
@@ -213,5 +275,49 @@ func (nrri *NodeRefinedResourceInfo) Clone() *NodeRefinedResourceInfo {
 		refinedNodeInfo.numericResourceProperty[k] = v
 	}
 
+	refinedNodeInfo.numaTopologyStatus = nrri.GetNumaTopologyStatus().Clone()
+
 	return refinedNodeInfo
+}
+
+func (nrri *NodeRefinedResourceInfo) GetNumaTopologyStatus() NumaTopologyStatus {
+	return nrri.numaTopologyStatus
+}
+
+func (nts NumaTopologyStatus) GetFreeNumasInSockets() map[int]sets.Int {
+	return nts.freeNumasInSockets
+}
+
+func (nts NumaTopologyStatus) GetNumasOfPods() map[string]sets.Int {
+	return nts.numasOfPods
+}
+
+func (nts NumaTopologyStatus) GetSocketsOfNumas() map[int]int {
+	return nts.socketsOfNumas
+}
+
+func (nts NumaTopologyStatus) GetSocketNum() int {
+	return len(nts.freeNumasInSockets)
+}
+
+func (nts NumaTopologyStatus) GetNumaNum() int {
+	return len(nts.socketsOfNumas)
+}
+
+func (nts NumaTopologyStatus) Clone() NumaTopologyStatus {
+	clone := NumaTopologyStatus{
+		freeNumasInSockets: make(map[int]sets.Int),
+		numasOfPods:        make(map[string]sets.Int),
+		socketsOfNumas:     make(map[int]int),
+	}
+	for k, v := range nts.GetFreeNumasInSockets() {
+		clone.freeNumasInSockets[k] = sets.NewInt(v.List()...)
+	}
+	for k, v := range nts.GetNumasOfPods() {
+		clone.numasOfPods[k] = sets.NewInt(v.List()...)
+	}
+	for k, v := range nts.GetSocketsOfNumas() {
+		clone.socketsOfNumas[k] = v
+	}
+	return clone
 }

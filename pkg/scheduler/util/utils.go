@@ -174,9 +174,18 @@ func LessImportantPod(pod1, pod2 interface{}) bool {
 		}
 	}
 
+	pod1SocketRequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceBytedanceSocket, resource.DecimalSI)
+	pod2SocketRequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceBytedanceSocket, resource.DecimalSI)
+	result := pod1SocketRequest.Cmp(*pod2SocketRequest)
+	if result < 0 {
+		return true
+	} else if result > 0 {
+		return false
+	}
+
 	pod1CPURequest := getPodRequest(pod1.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
 	pod2CPURequest := getPodRequest(pod2.(*v1.Pod), v1.ResourceCPU, resource.DecimalSI)
-	result := pod1CPURequest.Cmp(*pod2CPURequest)
+	result = pod1CPURequest.Cmp(*pod2CPURequest)
 	if result < 0 {
 		// pod2 request is greater than pod1
 		return false

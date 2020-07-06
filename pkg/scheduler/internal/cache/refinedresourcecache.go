@@ -2,13 +2,16 @@ package cache
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	v1resource "k8s.io/kubernetes/pkg/api/v1/resource"
+	"k8s.io/kubernetes/pkg/features"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	"k8s.io/kubernetes/pkg/scheduler/util"
 
@@ -256,6 +259,16 @@ func (cache *schedulerCache) addRefinedResourceNode(refinedNodeResource *nnrv1al
 		}
 	}
 
+	if refinedNodeResource.Status.NumaStatus.Sockets != nil {
+		numaIndex := 0
+		for socketID, socketStatus := range refinedNodeResource.Status.NumaStatus.Sockets {
+			for _, numaStatus := range socketStatus.Numas {
+				nrri.AddNumaTopologyStatus(socketID, numaIndex, numaStatus.User)
+				numaIndex++
+			}
+		}
+	}
+
 	cache.refinedResourceNodes[refinedNodeResource.Name] = nrri
 }
 
@@ -460,6 +473,26 @@ func NodeMatchedPodRequest(pod *v1.Pod, refinedResourceInfo *schedulernodeinfo.N
 		if !parseNumericResourcesProperties(pod.Annotations[util.NumericResourcesRequests], refinedResourceInfo, pod) {
 			return false
 		}
+	}
+
+	return true
+}
+
+func NumaTopologyMatchedPodRequest(pod *v1.Pod, refinedResourceInfo *schedulernodeinfo.NodeRefinedResourceInfo, nodeInfo *schedulernodeinfo.NodeInfo) bool {
+	// if feature gate is disable, skip the predicate check
+	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+		return true
+	}
+	if refinedResourceInfo == nil {
+		return false
+	}
+	// Check cpus per numa & mems per numa
+	if !satisfyResourcesPerNuma(nodeInfo, pod) {
+		return false
+	}
+	// Check numa topology
+	if !satisfyNumaBalance(refinedResourceInfo, nodeInfo, pod) {
+		return false
 	}
 
 	return true

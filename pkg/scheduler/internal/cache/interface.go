@@ -140,6 +140,8 @@ type Cache interface {
 	AddOneVictim(deployName string, victimUID string) error
 
 	SubtractOneVictim(deployName string, victimUID string) error
+
+	GetRefinedResourceNode(nodeName string) *schedulernodeinfo.NodeRefinedResourceInfo
 }
 
 // Dump is a dump of the cache state.

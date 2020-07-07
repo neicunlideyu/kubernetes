@@ -498,6 +498,7 @@ func setResourcesV2(cgroupConfig *libcontainerconfigs.Cgroup) error {
 			Major:       libcontainerconfigs.Wildcard,
 		},
 	}
+	cgroupConfig.Resources.SkipDevices = true
 
 	// if the hugetlb controller is missing
 	supportedControllers := getSupportedUnifiedControllers()
@@ -528,6 +529,7 @@ func (m *cgroupManagerImpl) toResources(resourceConfig *ResourceConfig) *libcont
 				Major:       libcontainerconfigs.Wildcard,
 			},
 		},
+		SkipDevices: true,
 	}
 	if resourceConfig == nil {
 		return resources

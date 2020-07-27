@@ -57,9 +57,6 @@ func (pl *TaintToleration) Filter(ctx context.Context, state *framework.CycleSta
 	if nodeInfo == nil || nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.Error, "invalid nodeInfo")
 	}
-	if kubelettypes.IsTCECriticalPod(pod) {
-		return nil
-	}
 
 	taints, err := nodeInfo.Taints()
 	if err != nil {
@@ -71,7 +68,15 @@ func (pl *TaintToleration) Filter(ctx context.Context, state *framework.CycleSta
 		return t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectNoExecute
 	}
 
-	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(taints, pod.Spec.Tolerations, filterPredicate)
+	var tolerations []v1.Toleration
+	if kubelettypes.IsTCECriticalPod(pod) {
+		// critical pod can tolerate more taints.
+		tolerations = addOrUpdateTCECriticalPodTolerations(pod)
+	} else {
+		tolerations = pod.Spec.Tolerations
+	}
+
+	taint, isUntolerated := v1helper.FindMatchingUntoleratedTaint(taints, tolerations, filterPredicate)
 	if !isUntolerated {
 		return nil
 	}
@@ -79,6 +84,65 @@ func (pl *TaintToleration) Filter(ctx context.Context, state *framework.CycleSta
 	errReason := fmt.Sprintf("node(s) had taint {%s: %s}, that the pod didn't tolerate",
 		taint.Key, taint.Value)
 	return framework.NewStatus(framework.UnschedulableAndUnresolvable, errReason)
+}
+
+//get tolerations of tce critical pod, add or update pressure tolerations, but will not update pod.spec
+func addOrUpdateTCECriticalPodTolerations(pod *v1.Pod) []v1.Toleration {
+	newTolerations := make([]v1.Toleration, len(pod.Spec.Tolerations))
+
+	pressureTolerations := []v1.Toleration{
+		{
+			Key:      v1.TaintNodeCPUPressure,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      v1.TaintNodeDiskPressure,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      v1.TaintNodeMemoryPressure,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      v1.TaintNodePIDPressure,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      v1.TaintNodeNetworkUnavailable,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		},
+	}
+
+	if kubelettypes.IsIncludeNotReadyNodeDaemonPod(pod) {
+		pressureTolerations = append(pressureTolerations, v1.Toleration{
+			Key:      v1.TaintNodeNotReady,
+			Operator: v1.TolerationOpExists,
+			Effect:   v1.TaintEffectNoSchedule,
+		})
+	}
+
+	copy(newTolerations, pod.Spec.Tolerations)
+	var existed bool
+	for _, toleration := range pressureTolerations {
+		existed = false
+		for i := range newTolerations {
+			if toleration.MatchToleration(&newTolerations[i]) {
+				// toleration is already in the set.
+				existed = true
+				break
+			}
+		}
+		// append the new toleration doesn't exist.
+		if !existed {
+			newTolerations = append(newTolerations, toleration)
+		}
+	}
+	return newTolerations
 }
 
 // preScoreState computed at PreScore and used at Score.

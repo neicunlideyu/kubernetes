@@ -32,10 +32,12 @@ const (
 	ConfigFirstSeenAnnotationKey = "kubernetes.io/config.seen"
 	ConfigHashAnnotationKey      = "kubernetes.io/config.hash"
 
-	CriticalTCEPodAnnotationKey = "scheduler.alpha.kubernetes.io/tce-critical-pod"
-
 	// SriovDeviceAnnotation determines the PCIe Address of Allocated VF
 	SriovDeviceAnnotation = "io.kubernetes.network.switchdev.pciaddress"
+
+	CriticalPodAnnotationKey               = "scheduler.alpha.kubernetes.io/critical-pod"
+	CriticalTCEPodAnnotationKey            = "scheduler.alpha.kubernetes.io/tce-critical-pod"
+	DaemonIncludeNotReadyNodeAnnotationKey = "scheduler.alpha.kubernetes.io/daemon-include-not-ready-node"
 )
 
 const (
@@ -205,6 +207,19 @@ func IsTCECriticalPod(pod *v1.Pod) bool {
 		return true
 	}
 
+	return false
+}
+
+// IsIncludeNotReadyNodeDaemonPod returns true if the pod is daemon pod and
+// tolerates not ready node.
+func IsIncludeNotReadyNodeDaemonPod(pod *v1.Pod) bool {
+	annotation := pod.GetAnnotations()
+	if annotation != nil {
+		value, ok := annotation[DaemonIncludeNotReadyNodeAnnotationKey]
+		if ok && value == "true" {
+			return true
+		}
+	}
 	return false
 }
 

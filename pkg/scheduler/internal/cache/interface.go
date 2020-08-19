@@ -135,13 +135,11 @@ type Cache interface {
 
 	DeletePreemptorFromCacheOnly(preemptor *v1.Pod) error
 
-	// comment victim relevant codes out first,
-	// delete them if removing the preemption restriction(victims can not preempt other pods) is ok
-	IsVictims(deployName string) bool
+	ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool
 
-	AddOneVictim(deployName string) error
+	AddOneVictim(deployName string, victimUID string) error
 
-	SubtractOneVictim(deployName string) error
+	SubtractOneVictim(deployName string, victimUID string) error
 }
 
 // Dump is a dump of the cache state.

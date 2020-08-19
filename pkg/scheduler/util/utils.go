@@ -511,7 +511,7 @@ func CanPodBePreempted(pod *v1.Pod, pcLister schedulingv1listers.PriorityClassLi
 	return pod.Annotations != nil && pod.Annotations[CanBePreemptedAnnotationKey] == "true"
 }
 
-func SingleDeploymentReplicas(pod *v1.Pod, deployLister appv1listers.DeploymentLister) bool {
+func SmallSizeDeployment(pod *v1.Pod, deployLister appv1listers.DeploymentLister) bool {
 	deployName := GetDeployNameFromPod(pod)
 	if len(deployName) == 0 {
 		return false
@@ -523,5 +523,5 @@ func SingleDeploymentReplicas(pod *v1.Pod, deployLister appv1listers.DeploymentL
 		return false
 	}
 
-	return deploy != nil && *deploy.Spec.Replicas == 1
+	return deploy != nil && *deploy.Spec.Replicas <= 3
 }

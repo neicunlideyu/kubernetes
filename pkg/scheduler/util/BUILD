@@ -32,6 +32,7 @@ go_library(
     srcs = [
         "clock.go",
         "error_channel.go",
+        "min_heap.go",
         "non_zero.go",
         "share_gpu.go",
         "topologies.go",

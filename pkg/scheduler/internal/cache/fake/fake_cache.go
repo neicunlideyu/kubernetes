@@ -141,14 +141,23 @@ func (c *Cache) IsVictims(deployName string) bool {
 	return false
 }
 
-func (c *Cache) AddOneVictim(deployName string) error {
+func (c *Cache) ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool {
+	return false
+}
+
+func (c *Cache) AddOneVictim(deployName string, victimUID string) error {
 	return nil
 }
 
-func (c *Cache) SubtractOneVictim(deployName string) error {
+func (c *Cache) SubtractOneVictim(deployName string, victimUID string) error {
 	return nil
 }
 
 func (c *Cache) GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo {
 	return nil
 }
+
+func (c *Cache) GetRefinedResourceNode(nodeName string) *schedulernodeinfo.NodeRefinedResourceInfo {
+	return nil
+}
+

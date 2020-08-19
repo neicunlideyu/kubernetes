@@ -18,7 +18,7 @@ import (
 	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
-func (cache *schedulerCache) AddOneVictim(deployName string) error {
+func (cache *schedulerCache) AddOneVictim(deployName string, victimUID string) error {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -26,30 +26,55 @@ func (cache *schedulerCache) AddOneVictim(deployName string) error {
 		// if the deployment name is empty, do not take any action
 		return nil
 	}
-	cache.deployVictims[deployName]++
+
+	if cache.deployVictims == nil {
+		cache.deployVictims = make(map[string]victimSet)
+	}
+	if cache.deployVictims[deployName] == nil {
+		cache.deployVictims[deployName] = make(victimSet)
+	}
+	cache.deployVictims[deployName][victimUID] = time.Now()
+	return nil
+}
+
+func (cache *schedulerCache) SubtractOneVictim(deployName string, victimUID string) error {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.deployVictims != nil && cache.deployVictims[deployName] != nil {
+		delete(cache.deployVictims[deployName], victimUID)
+	}
 
 	return nil
 }
 
-func (cache *schedulerCache) SubtractOneVictim(deployName string) error {
+func (cache *schedulerCache) ShouldDeployVictimsBeThrottled(pod *v1.Pod) bool {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	if cache.deployVictims[deployName] > 0 {
-		cache.deployVictims[deployName]--
-	}
-	if cache.deployVictims[deployName] == 0 {
-		delete(cache.deployVictims, deployName)
+	deployName := util.GetDeployNameFromPod(pod)
+	if len(deployName) == 0 {
+		return false
 	}
 
-	return nil
+	return len(cache.deployVictims[deployName]) >= 5
 }
 
-func (cache *schedulerCache) IsVictims(deployName string) bool {
+func (cache *schedulerCache) CleanUpOutdatedVictims() {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
-	return cache.deployVictims[deployName] > 0
+	now := time.Now()
+	for dpName, victims := range cache.deployVictims {
+		for victimUID, evictionTime := range victims {
+			if now.After(evictionTime.Add(1 * time.Minute)) {
+				delete(cache.deployVictims[dpName], victimUID)
+			}
+			if len(cache.deployVictims[dpName]) == 0 {
+				delete(cache.deployVictims, dpName)
+			}
+		}
+	}
 }
 
 // Assumes that lock is already acquired.
@@ -558,6 +583,10 @@ func satisfyCPUMemRequest(name string, request resource.Quantity, pod *v1.Pod, r
 
 	numaCapacity := capacityMap[util.NumaRefinedResourceKey]
 
+	if numaCapacity <= 0 {
+		return false
+	}
+
 	// get numa num from container request
 	requestedNumaNum := v1resource.GetResourceRequest(pod, v1.ResourceBytedanceSocket)
 
@@ -582,4 +611,64 @@ func satisfyCPUMemRequest(name string, request resource.Quantity, pod *v1.Pod, r
 			return false
 		}
 	}
+}
+
+func satisfyResourcesPerNuma(nodeInfo *schedulernodeinfo.NodeInfo, pod *v1.Pod) bool {
+	requestCPU := v1resource.GetResourceRequest(pod, v1.ResourceCPU)
+	requestMem := v1resource.GetResourceRequest(pod, v1.ResourceMemory)
+	requestNuma := v1resource.GetResourceRequest(pod, v1.ResourceBytedanceSocket)
+	allocatableResource := nodeInfo.AllocatableResource()
+	allocCPU := allocatableResource.MilliCPU
+	allocMem := allocatableResource.Memory
+	allocNuma := allocatableResource.ScalarResources[v1.ResourceBytedanceSocket]
+	if requestNuma == 0 {
+		return true
+	}
+	if ((requestCPU-1)/requestNuma+1)*allocNuma > allocCPU {
+		return false
+	}
+	if ((requestMem-1)/requestNuma+1)*allocNuma > allocMem {
+		return false
+	}
+	return true
+}
+
+func satisfyNumaBalance(refinedResourceInfo *schedulernodeinfo.NodeRefinedResourceInfo, nodeInfo *schedulernodeinfo.NodeInfo, pod *v1.Pod) bool {
+	requestNuma := v1resource.GetResourceRequest(pod, v1.ResourceBytedanceSocket)
+	if requestNuma == 0 {
+		return true
+	}
+	numaTopologyStatus := refinedResourceInfo.GetNumaTopologyStatus()
+	numaNum := numaTopologyStatus.GetNumaNum()
+	socketNum := numaTopologyStatus.GetSocketNum()
+	if numaNum == 0 || socketNum == 0 {
+		return false
+	}
+	numaNumPerSocket := numaNum / socketNum
+	requestSocket := (requestNuma-1)/int64(numaNumPerSocket) + 1
+	freeNumasInSockets := numaTopologyStatus.GetFreeNumasInSockets()
+	var socketSlice []int
+	for socketID := range freeNumasInSockets {
+		socketSlice = append(socketSlice, socketID)
+	}
+	sort.Slice(socketSlice, func(i, j int) bool {
+		return freeNumasInSockets[socketSlice[i]].Len() > freeNumasInSockets[socketSlice[j]].Len()
+	})
+	freeNumasNum := 0
+	for i, socketID := range socketSlice {
+		if int64(i) >= requestSocket {
+			return false
+		}
+		freeNumasNum += freeNumasInSockets[socketID].Len()
+		if int64(freeNumasNum) >= requestNuma {
+			return true
+		}
+	}
+	return false
+}
+
+func (cache *schedulerCache) GetRefinedResourceNode(nodeName string) *schedulernodeinfo.NodeRefinedResourceInfo {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	return cache.refinedResourceNodes[nodeName].Clone()
 }

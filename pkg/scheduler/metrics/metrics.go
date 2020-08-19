@@ -143,6 +143,30 @@ var (
 			StabilityLevel: metrics.ALPHA,
 		},
 	)
+	AssumingLatency = metrics.NewHistogram(
+		&metrics.HistogramOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "assuming_duration_seconds",
+			Help:      "Assuming latency in seconds ",
+			Buckets:   metrics.ExponentialBuckets(0.001, 2, 15),
+		},
+	)
+	AlgorithmToBindingLatency = metrics.NewHistogram(
+		&metrics.HistogramOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "algorithm_to_binding_duration_seconds",
+			Help:      "Latency in seconds between Algorithm and Binding",
+			Buckets:   metrics.ExponentialBuckets(0.001, 2, 15),
+		},
+	)
+	BindingVolumesLatency = metrics.NewHistogram(
+		&metrics.HistogramOpts{
+			Subsystem: SchedulerSubsystem,
+			Name:      "binding_volumes_duration_seconds",
+			Help:      "Binding Volumes latency in seconds",
+			Buckets:   metrics.ExponentialBuckets(0.001, 2, 15),
+		},
+	)
 	PreemptionVictims = metrics.NewHistogram(
 		&metrics.HistogramOpts{
 			Subsystem: SchedulerSubsystem,
@@ -260,7 +284,10 @@ var (
 		DeprecatedSchedulingDuration,
 		E2eSchedulingLatency,
 		SchedulingAlgorithmLatency,
+		BindingVolumesLatency,
 		BindingLatency,
+		AssumingLatency,
+		AlgorithmToBindingLatency,
 		DeprecatedSchedulingAlgorithmPredicateEvaluationSecondsDuration,
 		DeprecatedSchedulingAlgorithmPriorityEvaluationSecondsDuration,
 		SchedulingAlgorithmPreemptionEvaluationDuration,

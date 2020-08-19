@@ -402,26 +402,33 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 	}
 
 	// only if pod affinity is nil, we can cache dp info, otherwise, we may break affinity rules
+	cacheNodes := false
+	var dpName string
 	if pod.Spec.Affinity != nil && pod.Spec.Affinity.PodAffinity != nil {
-		// do nothing here
+		cacheNodes = false
 	} else {
 		// get deploy name
-		dpName := util.GetDeployNameFromPod(pod)
-		// podNames := strings.Split(pod.Name, "-")
+		dpName = util.GetDeployNameFromPod(pod)
 		if len(dpName) > 0 {
-			//dpName := pod.Namespace + "/" + podNames[0] + "-" + podNames[1]
-			// cache 20 nodes for dp if possible
-			for i := 0; i < len(nodeScoreList); i++ {
-				if i == selectedIndex {
-					continue
+			cacheNodes = true
+		}
+	}
+
+	// only if pod affinity is nil, we can cache dp info, otherwise, we may break affinity rules
+	if cacheNodes {
+		maxScore := nodeScoreList[selectedIndex].Score
+		cached := 0
+		topM := 20
+		for _, nodeScore := range nodeScoreList {
+			if nodeScore.Score == maxScore && nodeScore.Name != selected {
+				if cached < topM {
+					g.cache.CacheNodesForDP(dpName, nodeScore.Name)
 				}
-				if selectedIndex >= 20 && i == 20 {
-					break
-				}
-				if selectedIndex < 20 && i == 21 {
-					break
-				}
-				g.cache.CacheNodesForDP(dpName, nodeScoreList[i].Name)
+				cached++
+			}
+
+			if cached == topM {
+				break
 			}
 		}
 	}
@@ -475,7 +482,7 @@ func (g *genericScheduler) Preempt(ctx context.Context, prof *profile.Profile, s
 			return nil, nil, nil, err
 		}
 	}
-	nodeToVictims, err := g.selectNodesForPreemption(ctx, prof, state, pod, potentialNodes, pdbs, g.pcLister, g.deployLister)
+	nodeToVictims, err := g.selectNodesForPreemption(ctx, prof, state, pod, potentialNodes, pdbs, g.pcLister, g.deployLister, g.cache)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1069,6 +1076,7 @@ func (g *genericScheduler) selectNodesForPreemption(
 	pdbs []*policy.PodDisruptionBudget,
 	pcLister schedulingv1listers.PriorityClassLister,
 	deployLister appv1listers.DeploymentLister,
+	cache internalcache.Cache,
 ) (map[*v1.Node]*extenderv1.Victims, error) {
 	nodeToVictims := map[*v1.Node]*extenderv1.Victims{}
 	var resultLock sync.Mutex
@@ -1076,7 +1084,7 @@ func (g *genericScheduler) selectNodesForPreemption(
 	checkNode := func(i int) {
 		nodeInfoCopy := potentialNodes[i].Clone()
 		stateCopy := state.Clone()
-		pods, numPDBViolations, fits := g.selectVictimsOnNode(ctx, prof, stateCopy, pod, nodeInfoCopy, pdbs, pcLister, deployLister)
+		pods, numPDBViolations, fits := g.selectVictimsOnNode(ctx, prof, stateCopy, pod, nodeInfoCopy, pdbs, pcLister, deployLister, cache)
 		if fits {
 			resultLock.Lock()
 			victims := extenderv1.Victims{
@@ -1161,6 +1169,7 @@ func (g *genericScheduler) selectVictimsOnNode(
 	pdbs []*policy.PodDisruptionBudget,
 	pcLister schedulingv1listers.PriorityClassLister,
 	deployLister appv1listers.DeploymentLister,
+	cache internalcache.Cache,
 ) ([]*v1.Pod, int, bool) {
 	var potentialVictims []*v1.Pod
 
@@ -1206,7 +1215,12 @@ func (g *genericScheduler) selectVictimsOnNode(
 			continue
 		}
 
-		if util.SingleDeploymentReplicas(p, deployLister) {
+		if util.SmallSizeDeployment(p, deployLister) {
+			continue
+		}
+
+		if cache.ShouldDeployVictimsBeThrottled(p) {
+			klog.Infof("too many victims of this deployment in a short period, skip this eviction")
 			continue
 		}
 

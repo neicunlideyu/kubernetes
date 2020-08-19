@@ -83,9 +83,12 @@ type schedulerCache struct {
 	// backward compatibility(for now, k8s can not make sure to schedule the preemtor to the nominated node), we give the preemptor several chances to be scheduled to the nominated node,
 	// if it still can not be scheduled to the node, remove the nominated node and try to schedule and preempt again.
 	cachedPreemptors map[string]int
-	// key is deploy name, value is number of victims belonging to this deployment
-	deployVictims map[string]int
+	// key is deploy name, value is victims set
+	deployVictims map[string]victimSet
 }
+
+// key is victim UID
+type victimSet map[string]time.Time
 
 type podState struct {
 	pod *v1.Pod
@@ -132,7 +135,7 @@ func newSchedulerCache(ttl, period time.Duration, stop <-chan struct{}) *schedul
 		filteredNodesForDP:   make(map[string]NodesSet),
 		refinedResourceNodes: make(map[string]*schedulernodeinfo.NodeRefinedResourceInfo),
 		cachedPreemptors:     make(map[string]int),
-		deployVictims:        make(map[string]int),
+		deployVictims:        make(map[string]victimSet),
 	}
 }
 
@@ -814,6 +817,8 @@ func (cache *schedulerCache) run() {
 	go wait.Until(cache.CleanupDPCachedInfo, 2*time.Minute, cache.stop)
 
 	go wait.Until(cache.CleanupFilteredNodesForDeploy, 1*time.Minute, cache.stop)
+
+	go wait.Until(cache.CleanUpOutdatedVictims, 1*time.Minute, cache.stop)
 }
 
 func (cache *schedulerCache) cleanupExpiredAssumedPods() {

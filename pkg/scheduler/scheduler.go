@@ -550,10 +550,10 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 			prof.Recorder.Eventf(victim, preemptor, v1.EventTypeNormal, "Preempted", "Preempting", "Preempted by %v/%v on node %v", preemptor.Namespace, preemptor.Name, nodeName)
 
 			// cache victims for deployment
-			/*deployName := util.GetDeployNameFromPod(victim)
+			deployName := util.GetDeployNameFromPod(victim)
 			if len(deployName) > 0 {
-				sched.SchedulerCache.AddOneVictim(deployName)
-			}*/
+				sched.SchedulerCache.AddOneVictim(deployName, string(victim.UID))
+			}
 		}
 		metrics.PreemptionVictims.Observe(float64(len(victims)))
 	} else {
@@ -580,6 +580,7 @@ func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, stat
 // If binding errors, times out or gets undone, then an error will be returned to
 // retry scheduling.
 func (sched *Scheduler) bindVolumes(assumed *v1.Pod) error {
+	bindingVolumesStart := time.Now()
 	klog.V(5).Infof("Trying to bind volumes for pod \"%v/%v\"", assumed.Namespace, assumed.Name)
 	err := sched.VolumeBinder.BindPodVolumes(assumed)
 	if err != nil {
@@ -592,6 +593,8 @@ func (sched *Scheduler) bindVolumes(assumed *v1.Pod) error {
 
 		return err
 	}
+
+	metrics.BindingVolumesLatency.Observe(metrics.SinceInSeconds(bindingVolumesStart))
 
 	klog.V(5).Infof("Success binding volumes for pod \"%v/%v\"", assumed.Namespace, assumed.Name)
 	return nil
@@ -801,6 +804,9 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 	}*/
 
 	metrics.SchedulingAlgorithmLatency.Observe(metrics.SinceInSeconds(start))
+
+	algorithmEndsTime := time.Now()
+
 	podToUpdate := pod.DeepCopy()
 	addResourceErr, shouldUpdate := sched.AddCPUMemoryResource(podToUpdate, scheduleResult.SuggestedHost)
 	if addResourceErr != nil {
@@ -912,6 +918,9 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 		return
 	}
 
+	metrics.AssumingLatency.Observe(metrics.SinceInSeconds(algorithmEndsTime))
+	mainProcessEndsTime := time.Now()
+
 	// bind the pod to its host asynchronously (we can do this b/c of the assumption step above).
 	go func() {
 		bindingCycleCtx, cancel := context.WithCancel(ctx)
@@ -938,6 +947,7 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 			return
 		}
 
+		metrics.AlgorithmToBindingLatency.Observe(metrics.SinceInSeconds(mainProcessEndsTime))
 		if shouldUpdate {
 			klog.V(4).Infof("Starting updating cpu/memory resource for the pod: %s", podToUpdate.Name)
 			errUpdate := sched.podUpdater.update(podToUpdate)

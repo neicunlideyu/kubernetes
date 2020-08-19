@@ -64,6 +64,8 @@ import (
 // protection against unwanted pod disruptions.
 const DeletionTimeout = 2 * 60 * time.Second
 
+const workerCount = 10
+
 type updater func(*policy.PodDisruptionBudget) error
 
 type DisruptionController struct {
@@ -341,7 +343,11 @@ func (dc *DisruptionController) Run(stopCh <-chan struct{}) {
 	} else {
 		klog.Infof("No api server defined - no events will be sent to API server.")
 	}
-	go wait.Until(dc.worker, time.Second, stopCh)
+
+	for i := 0; i < workerCount; i++ {
+		go wait.Until(dc.worker, time.Second, stopCh)
+	}
+
 	go wait.Until(dc.recheckWorker, time.Second, stopCh)
 
 	<-stopCh

@@ -30,6 +30,12 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core/helper"
 )
 
+const (
+	PodOnline         = "OnlinePod"
+	PodOffline        = "OfflinePod"
+	PodTypeAnnotation = "pod.tce.kubernetes.io/podType"
+)
+
 // IsExtendedResourceName returns true if:
 // 1. the resource name is not in the default namespace;
 // 2. resource name does not have "requests." prefix,
@@ -551,4 +557,27 @@ func ScopedResourceSelectorRequirementsAsSelector(ssr v1.ScopedResourceSelectorR
 	}
 	selector = selector.Add(*r)
 	return selector, nil
+}
+
+// isVMRuntime check pod whether uses vm runtime, e.g, kata-qemu, kata-clh...
+func IsVMRuntime(pod *v1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+
+	if pod.Spec.RuntimeClassName != nil && strings.HasPrefix(*pod.Spec.RuntimeClassName, "kata") {
+		return true
+	}
+	return false
+}
+
+func IsOfflinePod(pod *v1.Pod) bool {
+	if pod.Annotations == nil {
+		return false
+	}
+
+	if podType, ok := pod.Annotations[PodTypeAnnotation]; ok && podType == PodOffline {
+		return true
+	}
+	return false
 }

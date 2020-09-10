@@ -134,6 +134,12 @@ func ResourceConfigForPod(pod *v1.Pod, enforceCPULimits bool, cpuPeriod uint64) 
 	}
 	if limit, found := limits[v1.ResourceMemory]; found {
 		memoryLimits = limit.Value()
+		if v1helper.IsVMRuntime(pod) {
+			// TODO: use podOverhead
+			// Add 1G memory overhead
+			memoryLimits += 1024 * 1024 * 1024
+			klog.V(2).Infof("Add memory overhead (300M) for kata pod %s(%s): after: %d", pod.Name, pod.UID, memoryLimits)
+		}
 	}
 
 	// convert to CFS values

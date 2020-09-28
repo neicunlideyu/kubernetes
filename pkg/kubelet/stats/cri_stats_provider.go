@@ -776,6 +776,20 @@ func (p *criStatsProvider) addCadvisorContainerStats(
 	if memory != nil {
 		cs.Memory = memory
 	}
+
+	cstat, found := latestContainerStats(caPodStats)
+	if found && cstat.Accelerators != nil {
+		for _, acc := range cstat.Accelerators {
+			cs.Accelerators = append(cs.Accelerators, statsapi.AcceleratorStats{
+				Make:        acc.Make,
+				Model:       acc.Model,
+				ID:          acc.ID,
+				MemoryTotal: acc.MemoryTotal,
+				MemoryUsed:  acc.MemoryUsed,
+				DutyCycle:   acc.DutyCycle,
+			})
+		}
+	}
 }
 
 func getCRICadvisorStats(infos map[string]cadvisorapiv2.ContainerInfo) map[string]cadvisorapiv2.ContainerInfo {

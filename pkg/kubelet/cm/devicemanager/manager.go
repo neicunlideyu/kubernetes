@@ -184,6 +184,17 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 			m.unhealthyDevices[resourceName].Insert(dev.ID)
 		}
 	}
+	for podUID, containers := range m.podDevices {
+		for _, resources := range containers {
+			for resource, devices := range resources {
+				if !m.healthyDevices[resource].IsSuperset(devices.deviceIds) {
+					klog.Infof("devices: %+v for podUID: %v isn't all healthy, needs re-allocate device plugin resources", devices, podUID)
+					m.podDevices.delete([]string{podUID})
+					m.allocatedDevices[resource].Difference(devices.deviceIds)
+				}
+			}
+		}
+	}
 	m.mutex.Unlock()
 	if err := m.writeCheckpoint(); err != nil {
 		klog.Errorf("writing checkpoint encountered %v", err)

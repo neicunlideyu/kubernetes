@@ -23,7 +23,8 @@ type podUpdater struct {
 
 func NewPodUpdater(c clientset.Interface) PodUpdater {
 	return &podUpdater{
-		client: c,
+		client:     c,
+		needUpdate: false,
 	}
 }
 
@@ -36,6 +37,7 @@ func (p *podUpdater) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAdm
 			Message: "Update pod failed.",
 		}
 	}
+	p.needUpdate = false
 	return lifecycle.PodAdmitResult{
 		Admit: true,
 	}
@@ -46,7 +48,7 @@ func (p *podUpdater) update(pod *v1.Pod) error {
 		return nil
 	}
 	klog.V(2).Infof("Updating pod %s/%s", pod.Namespace, pod.Name)
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		spec := pod.Spec
 		_, updateErr := p.client.CoreV1().Pods(pod.Namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
 		if updateErr == nil {

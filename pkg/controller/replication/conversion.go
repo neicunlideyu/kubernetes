@@ -99,9 +99,9 @@ func (l conversionLister) GetPodReplicaSets(pod *v1.Pod) ([]*apps.ReplicaSet, er
 	return convertSlice(rcList)
 }
 
-func (l conversionLister) ReplicaSetsForTCELabel(namespace string) appslisters.ReplicaSetTCELabelLister {
+func (l conversionLister) ReplicaSetsForTCELabel(namespace, indexName string) appslisters.ReplicaSetTCELabelLister {
 	return conversionTCELabelLister{
-		rcTCELabelLister: l.rcLister.ReplicationControllersForTCELabel(namespace),
+		rcTCELabelLister: l.rcLister.ReplicationControllersForTCELabel(namespace, indexName),
 	}
 }
 

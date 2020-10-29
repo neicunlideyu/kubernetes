@@ -80,9 +80,7 @@ func IndexFuncToKeyFuncAdapter(indexFunc IndexFunc) KeyFunc {
 const (
 	// NamespaceIndex is the lookup name for the most comment index function, which is to index by the namespace field.
 	NamespaceIndex string = "namespace"
-	LabelIndex     string = "label"
 
-	labelName  string = "name"
 	labelEmpty string = "empty"
 )
 
@@ -95,22 +93,26 @@ func MetaNamespaceIndexFunc(obj interface{}) ([]string, error) {
 	return []string{meta.GetNamespace()}, nil
 }
 
-// LabelNameIndexFunc is a index function that indexes based on object's label[name]
-func LabelNameIndexFunc(obj interface{}) ([]string, error) {
-	meta, err := meta.Accessor(obj)
-	if err != nil {
-		return []string{""}, fmt.Errorf("object has no meta: %v", err)
+// LabelNameIndexFunc is a index function that indexes based on object's label[labelName]
+func LabelIndexFunc(labelName string) func(interface{}) ([]string, error) {
+	return func(obj interface{}) ([]string, error) {
+		meta, err := meta.Accessor(obj)
+		if err != nil {
+			return []string{""}, fmt.Errorf("object has no meta: %v", err)
+		}
+		labels := meta.GetLabels()
+		if labels == nil {
+			return []string{labelEmpty}, nil
+		}
+		name, ok := labels[labelName]
+		if !ok {
+			return []string{labelEmpty}, nil
+		}
+		return []string{name}, nil
 	}
-	labels := meta.GetLabels()
-	if labels == nil {
-		return []string{labelEmpty}, nil
-	}
-	name, ok := labels[labelName]
-	if !ok {
-		return []string{labelEmpty}, nil
-	}
-	return []string{name}, nil
 }
+
+// LabelNameIndexFunc is a index function that indexes based on object's label[name]
 
 // Index maps the indexed value to a set of keys in the store that match on that value
 type Index map[string]sets.String

@@ -78,3 +78,11 @@ type DebuggingConfiguration struct {
 	// enableProfiling is true.
 	EnableContentionProfiling bool
 }
+
+// IndexConfiguration holds configuration for the index of informer.
+type IndexConfiguration struct {
+	// name is the name of index for rs/pod informer
+	Name string
+	// key is the key of label index for rs/pod informer
+	Key string
+}

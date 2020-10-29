@@ -88,6 +88,7 @@ const (
 	PodHostPathTemplateAnnotation     = "pod.tce.kubernetes.io/hostPathTemplate"
 	PodHostUniqueToleranceAnnotation  = "pod.tce.kubernetes.io/host-unique-tolerance-count"
 	TCEDaemonPodAnnotationKey         = "pod.tce.kubernetes.io/tce-daemon"
+	PodOrphanAnnotation               = "pod.tce.kubernetes.io/orphan"
 )
 
 // Visitor is called with each object name, and returns true if visiting should continue

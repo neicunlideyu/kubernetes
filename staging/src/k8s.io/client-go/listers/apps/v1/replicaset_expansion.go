@@ -19,26 +19,27 @@ package v1
 import (
 	"fmt"
 
-	"k8s.io/klog"
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 )
 
 // ReplicaSetListerExpansion allows custom methods to be added to
 // ReplicaSetLister.
 type ReplicaSetListerExpansion interface {
 	GetPodReplicaSets(pod *v1.Pod) ([]*apps.ReplicaSet, error)
-	ReplicaSetsForTCELabel(namespace string) ReplicaSetTCELabelLister
+	ReplicaSetsForTCELabel(namespace, indexName string) ReplicaSetTCELabelLister
 }
 
-func (s *replicaSetLister) ReplicaSetsForTCELabel(namespace string) ReplicaSetTCELabelLister {
+func (s *replicaSetLister) ReplicaSetsForTCELabel(namespace, indexName string) ReplicaSetTCELabelLister {
 	return replicasetTCELabelLister{
 		indexer:   s.indexer,
 		namespace: namespace,
+		indexName: indexName,
 	}
 }
 
@@ -49,10 +50,11 @@ type ReplicaSetTCELabelLister interface {
 type replicasetTCELabelLister struct {
 	indexer   cache.Indexer
 	namespace string
+	indexName string
 }
 
 func (s replicasetTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*apps.ReplicaSet, err error) {
-	items, err := s.indexer.Index(cache.LabelIndex, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
+	items, err := s.indexer.Index(s.indexName, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
 	if err != nil {
 		// Ignore error; do slow search without index.
 		klog.Warningf("can not retrieve list of objects using index : %v", err)

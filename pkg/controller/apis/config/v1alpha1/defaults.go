@@ -133,6 +133,12 @@ func RecommendedDefaultGenericControllerManagerConfiguration(obj *kubectrlmgrcon
 	// Use the default ClientConnectionConfiguration and LeaderElectionConfiguration options
 	componentbaseconfigv1alpha1.RecommendedDefaultClientConnectionConfiguration(&obj.ClientConnection)
 	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&obj.LeaderElection)
+	if obj.Index.Name == "" {
+		obj.Index.Name = "label"
+	}
+	if obj.Index.Key == "" {
+		obj.Index.Key = "name"
+	}
 }
 
 func SetDefaults_KubeCloudSharedConfiguration(obj *kubectrlmgrconfigv1alpha1.KubeCloudSharedConfiguration) {

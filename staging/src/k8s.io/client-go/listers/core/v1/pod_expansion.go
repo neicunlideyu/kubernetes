@@ -19,22 +19,23 @@ limitations under the License.
 package v1
 
 import (
-	"k8s.io/klog"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 )
 
 type PodListerExpansion interface {
-	PodsForTCELabel(namespace string) PodTCELabelLister
+	PodsForTCELabel(namespace, indexName string) PodTCELabelLister
 }
 
-func (s *podLister) PodsForTCELabel(namespace string) PodTCELabelLister {
+func (s *podLister) PodsForTCELabel(namespace, indexName string) PodTCELabelLister {
 	return podTCELabelLister{
 		indexer:   s.indexer,
 		namespace: namespace,
+		indexName: indexName,
 	}
 }
 
@@ -45,10 +46,11 @@ type PodTCELabelLister interface {
 type podTCELabelLister struct {
 	indexer   cache.Indexer
 	namespace string
+	indexName string
 }
 
 func (s podTCELabelLister) List(labelSelector *metav1.LabelSelector) (ret []*v1.Pod, err error) {
-	items, err := s.indexer.Index(cache.LabelIndex, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
+	items, err := s.indexer.Index(s.indexName, &metav1.ObjectMeta{Labels: labelSelector.MatchLabels})
 	if err != nil {
 		// Ignore error; do slow search without index.
 		klog.Warningf("can not retrieve list of objects using index : %v", err)

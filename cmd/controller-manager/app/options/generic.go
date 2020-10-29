@@ -63,6 +63,8 @@ func (o *GenericControllerManagerConfigurationOptions) AddFlags(fss *cliflag.Nam
 		strings.Join(allControllers, ", "), strings.Join(disabledByDefaultControllers, ", ")))
 
 	leaderelectionconfig.BindFlags(&o.LeaderElection, genericfs)
+	genericfs.StringVar(&o.Index.Name, "informer-index-name", o.Index.Name, "The name of rs/pod informer index used in deployment/rs controller")
+	genericfs.StringVar(&o.Index.Key, "informer-index-key", o.Index.Key, "The key of rs/pod informer index used in deployment/rs controller")
 }
 
 // ApplyTo fills up generic config with options.
@@ -82,6 +84,7 @@ func (o *GenericControllerManagerConfigurationOptions) ApplyTo(cfg *kubectrlmgrc
 	cfg.ControllerStartInterval = o.ControllerStartInterval
 	cfg.LeaderElection = o.LeaderElection
 	cfg.Controllers = o.Controllers
+	cfg.Index = o.Index
 
 	return nil
 }

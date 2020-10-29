@@ -71,7 +71,7 @@ func startReplicaSetController(ctx ControllerContext) (http.Handler, bool, error
 	if !ctx.AvailableResources[schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}] {
 		return nil, false, nil
 	}
-	if err := ctx.InformerFactory.Core().V1().Pods().Informer().AddIndexers(cache.Indexers{cache.LabelIndex: cache.LabelNameIndexFunc}); err != nil {
+	if err := ctx.InformerFactory.Core().V1().Pods().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
 		return nil, false, err
 	}
 	go replicaset.NewReplicaSetController(
@@ -79,6 +79,7 @@ func startReplicaSetController(ctx ControllerContext) (http.Handler, bool, error
 		ctx.InformerFactory.Core().V1().Pods(),
 		ctx.ClientBuilder.ClientOrDie("replicaset-controller"),
 		replicaset.BurstReplicas,
+		ctx.ComponentConfig.Generic.Index.Name,
 	).Run(int(ctx.ComponentConfig.ReplicaSetController.ConcurrentRSSyncs), ctx.Stop)
 	return nil, true, nil
 }
@@ -87,7 +88,7 @@ func startDeploymentController(ctx ControllerContext) (http.Handler, bool, error
 	if !ctx.AvailableResources[schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}] {
 		return nil, false, nil
 	}
-	if err := ctx.InformerFactory.Apps().V1().ReplicaSets().Informer().AddIndexers(cache.Indexers{cache.LabelIndex: cache.LabelNameIndexFunc}); err != nil {
+	if err := ctx.InformerFactory.Apps().V1().ReplicaSets().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
 		return nil, false, err
 	}
 	dc, err := deployment.NewDeploymentController(
@@ -95,6 +96,7 @@ func startDeploymentController(ctx ControllerContext) (http.Handler, bool, error
 		ctx.InformerFactory.Apps().V1().ReplicaSets(),
 		ctx.InformerFactory.Core().V1().Pods(),
 		ctx.ClientBuilder.ClientOrDie("deployment-controller"),
+		ctx.ComponentConfig.Generic.Index.Name,
 	)
 	if err != nil {
 		return nil, true, fmt.Errorf("error creating Deployment controller: %v", err)

@@ -80,3 +80,11 @@ type ClientConnectionConfiguration struct {
 	// burst allows extra queries to accumulate when a client is exceeding its rate.
 	Burst int32 `json:"burst"`
 }
+
+// IndexConfiguration holds configuration for the index of informer.
+type IndexConfiguration struct {
+	// name is the name of index for rs/pod informer
+	Name string `json:"indexName"`
+	// key is the key of label index for rs/pod informer
+	Key string `json:"indexKey"`
+}

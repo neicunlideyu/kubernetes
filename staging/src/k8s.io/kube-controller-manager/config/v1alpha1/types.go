@@ -179,6 +179,8 @@ type GenericControllerManagerConfiguration struct {
 	Controllers []string
 	// DebuggingConfiguration holds configuration for Debugging related features.
 	Debugging componentbaseconfigv1alpha1.DebuggingConfiguration
+	// IndexConfiguration holds configuration for the index of informer.
+	Index componentbaseconfigv1alpha1.IndexConfiguration
 }
 
 // KubeCloudSharedConfiguration contains elements shared by both kube-controller manager

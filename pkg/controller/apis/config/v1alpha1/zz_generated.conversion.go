@@ -183,6 +183,10 @@ func autoConvert_v1alpha1_GenericControllerManagerConfiguration_To_config_Generi
 	if err := componentbaseconfigv1alpha1.Convert_v1alpha1_DebuggingConfiguration_To_config_DebuggingConfiguration(&in.Debugging, &out.Debugging, s); err != nil {
 		return err
 	}
+	// TODO: Inefficient conversion - can we improve it?
+	if err := s.Convert(&in.Index, &out.Index, 0); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -199,6 +203,10 @@ func autoConvert_config_GenericControllerManagerConfiguration_To_v1alpha1_Generi
 	}
 	out.Controllers = *(*[]string)(unsafe.Pointer(&in.Controllers))
 	if err := componentbaseconfigv1alpha1.Convert_config_DebuggingConfiguration_To_v1alpha1_DebuggingConfiguration(&in.Debugging, &out.Debugging, s); err != nil {
+		return err
+	}
+	// TODO: Inefficient conversion - can we improve it?
+	if err := s.Convert(&in.Index, &out.Index, 0); err != nil {
 		return err
 	}
 	return nil

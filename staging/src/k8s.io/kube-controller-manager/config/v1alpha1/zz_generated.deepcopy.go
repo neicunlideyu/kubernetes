@@ -196,6 +196,7 @@ func (in *GenericControllerManagerConfiguration) DeepCopyInto(out *GenericContro
 		copy(*out, *in)
 	}
 	in.Debugging.DeepCopyInto(&out.Debugging)
+	out.Index = in.Index
 	return
 }
 

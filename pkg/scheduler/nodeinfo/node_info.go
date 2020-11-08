@@ -89,6 +89,8 @@ type NodeInfo struct {
 	// Whenever NodeInfo changes, generation is bumped.
 	// This is used to avoid cloning it if the object didn't change.
 	generation int64
+
+	NodeShareGPUDeviceInfo
 }
 
 //initializeNodeTransientInfo initializes transient information pertaining to node.
@@ -554,6 +556,10 @@ func (n *NodeInfo) AddPod(pod *v1.Pod) {
 	n.UpdateUsedPorts(pod, true)
 
 	n.generation = nextGeneration()
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
+		n.NodeShareGPUDeviceInfo.addPodDevices(pod)
+	}
 }
 
 func removeFromSlice(s []*v1.Pod, k string) []*v1.Pod {
@@ -620,6 +626,9 @@ func (n *NodeInfo) RemovePod(pod *v1.Pod) error {
 			n.resetSlicesIfEmpty()
 			return nil
 		}
+	}
+	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
+		n.removePodDevices(pod)
 	}
 	return fmt.Errorf("no corresponding pod %s in pods of node %s", pod.Name, n.node.Name)
 }
@@ -714,6 +723,10 @@ func (n *NodeInfo) SetNode(node *v1.Node) error {
 	}
 	n.TransientInfo = NewTransientSchedulerInfo()
 	n.generation = nextGeneration()
+	// if share gpu feature gate is enabled, add share gpu device info in node info
+	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) {
+		n.SetShareGPUDevices(node)
+	}
 	return nil
 }
 

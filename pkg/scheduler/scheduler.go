@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/kubernetes/pkg/scheduler/util"
 	"math/rand"
 	"os"
 	"time"
@@ -37,6 +38,7 @@ import (
 	"k8s.io/klog"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/controller/volume/scheduling"
+	"k8s.io/kubernetes/pkg/features"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
@@ -677,6 +679,24 @@ func (sched *Scheduler) scheduleOne(ctx context.Context) {
 			Reason: "Unschedulable",
 		})
 		return
+	}
+
+	// if share gpu feature gate is enabled, allocate physical gpu and update pod annotation
+	if utilfeature.DefaultFeatureGate.Enabled(features.ShareGPU) && util.IsGPUSharingPod(podToUpdate) {
+		shouldUpdate = true
+		nodeInfo := sched.Cache().GetNodeInfo(scheduleResult.SuggestedHost)
+		allocateShareGPUErr := nodeInfo.AllocateShareGPU(podToUpdate)
+		if allocateShareGPUErr != nil {
+			klog.Errorf("Failed to schedule: %v, fail to allocate physical gpu.", podToUpdate)
+			sched.Error(podInfo, allocateShareGPUErr)
+			prof.Recorder.Eventf(podToUpdate, nil, v1.EventTypeWarning, "FailedScheduling", "%v", allocateShareGPUErr.Error())
+			sched.podConditionUpdater.update(podToUpdate, &v1.PodCondition{
+				Type:   v1.PodScheduled,
+				Status: v1.ConditionFalse,
+				Reason: "Unschedulable",
+			})
+			return
+		}
 	}
 
 	// Tell the cache to assume that a pod now is running on a given node, even though it hasn't been bound yet.

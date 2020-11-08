@@ -612,6 +612,12 @@ const (
 	// Add overhead (1G memory) to pod level memory cgroup for VM runtime pod.
 	// TODO: replace this by PodOverhead if suppported in future version.
 	LocalVMPodOverhead featuregate.Feature = "LocalVMPodOverhead"
+
+	// owner: @xuchen.xiaoying
+	// alpha: v1.14
+	//
+	// Enable share gpu scheduling
+	ShareGPU featuregate.Feature = "ShareGPU"
 )
 
 func init() {
@@ -706,6 +712,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	EvictByAPI:                                     {Default: true, PreRelease: featuregate.GA},
 	DynamicLoadEvictionThreshold:                   {Default: false, PreRelease: featuregate.Alpha},
 	LocalVMPodOverhead:                             {Default: true, PreRelease: featuregate.Alpha},
+	ShareGPU:                                       {Default: false, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

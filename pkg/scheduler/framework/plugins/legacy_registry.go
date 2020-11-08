@@ -143,13 +143,15 @@ const (
 	EvenPodsSpreadPred = "EvenPodsSpread"
 
 	MatchHostUniquePred = "MatchHostUnique"
+
+	ShareGPUPred = "ShareGPU"
 )
 
 // PredicateOrdering returns the ordering of predicate execution.
 func PredicateOrdering() []string {
 	return []string{CheckNodeUnschedulablePred,
 		GeneralPred, HostNamePred, PodFitsHostPortsPred,
-		MatchNodeSelectorPred, PodFitsResourcesPred, NoDiskConflictPred,
+		MatchNodeSelectorPred, PodFitsResourcesPred, ShareGPUPred, NoDiskConflictPred,
 		PodToleratesNodeTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
 		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
@@ -215,6 +217,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			CheckVolumeBindingPred,
 			CheckNodeUnschedulablePred,
 			MatchHostUniquePred,
+			ShareGPUPred,
 		),
 
 		// Used as the default set of predicates if Policy was specified, but priorities was nil.
@@ -350,6 +353,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 	registry.registerPredicateConfigProducer(MatchHostUniquePred,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Filter = appendToPluginSet(plugins.Filter, hostunique.Name, nil)
+			return
+		})
+	registry.registerPredicateConfigProducer(HostNamePred,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Filter = appendToPluginSet(plugins.Filter, noderesources.ShareGPUName, nil)
 			return
 		})
 

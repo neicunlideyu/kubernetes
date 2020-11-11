@@ -29,6 +29,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/scale"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/controller/disruption"
 	kubefeatures "k8s.io/kubernetes/pkg/features"
 )
@@ -57,6 +58,12 @@ func startDisruptionController(ctx ControllerContext) (http.Handler, bool, error
 		return nil, false, err
 	}
 
+	// TODO: add AddIndexerIfNotPresent method
+	if _, ok := ctx.InformerFactory.Core().V1().Pods().Informer().GetIndexer().GetIndexers()[ctx.ComponentConfig.Generic.Index.Name]; !ok {
+		if err := ctx.InformerFactory.Core().V1().Pods().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
+			return nil, false, err
+		}
+	}
 	go disruption.NewDisruptionController(
 		ctx.InformerFactory.Core().V1().Pods(),
 		ctx.InformerFactory.Policy().V1beta1().PodDisruptionBudgets(),
@@ -67,6 +74,8 @@ func startDisruptionController(ctx ControllerContext) (http.Handler, bool, error
 		client,
 		ctx.RESTMapper,
 		scaleClient,
+		ctx.ComponentConfig.Generic.Index.Name,
+		ctx.ComponentConfig.Generic.Index.Key,
 	).Run(ctx.Stop)
 	return nil, true, nil
 }

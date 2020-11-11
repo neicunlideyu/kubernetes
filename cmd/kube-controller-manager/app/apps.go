@@ -71,8 +71,10 @@ func startReplicaSetController(ctx ControllerContext) (http.Handler, bool, error
 	if !ctx.AvailableResources[schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}] {
 		return nil, false, nil
 	}
-	if err := ctx.InformerFactory.Core().V1().Pods().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
-		return nil, false, err
+	if _, ok := ctx.InformerFactory.Core().V1().Pods().Informer().GetIndexer().GetIndexers()[ctx.ComponentConfig.Generic.Index.Name]; !ok {
+		if err := ctx.InformerFactory.Core().V1().Pods().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
+			return nil, false, err
+		}
 	}
 	go replicaset.NewReplicaSetController(
 		ctx.InformerFactory.Apps().V1().ReplicaSets(),
@@ -88,8 +90,10 @@ func startDeploymentController(ctx ControllerContext) (http.Handler, bool, error
 	if !ctx.AvailableResources[schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}] {
 		return nil, false, nil
 	}
-	if err := ctx.InformerFactory.Apps().V1().ReplicaSets().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
-		return nil, false, err
+	if _, ok := ctx.InformerFactory.Apps().V1().ReplicaSets().Informer().GetIndexer().GetIndexers()[ctx.ComponentConfig.Generic.Index.Name]; !ok {
+		if err := ctx.InformerFactory.Apps().V1().ReplicaSets().Informer().AddIndexers(cache.Indexers{ctx.ComponentConfig.Generic.Index.Name: cache.LabelIndexFunc(ctx.ComponentConfig.Generic.Index.Key)}); err != nil {
+			return nil, false, err
+		}
 	}
 	dc, err := deployment.NewDeploymentController(
 		ctx.InformerFactory.Apps().V1().Deployments(),

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	apps "k8s.io/api/apps/v1beta1"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	policy "k8s.io/api/policy/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -63,6 +63,7 @@ import (
 // clock (via ntp for example). Otherwise PodDisruptionBudget controller may not provide enough
 // protection against unwanted pod disruptions.
 const DeletionTimeout = 2 * 60 * time.Second
+
 // disruption controller only handle pdb owned by deployment/ replicaset/ statefulset, pdb owned by crd
 // will be ignored and  fallback to set disruptionAllowed as zero. if pdb has this annotation, pdb controller
 // will skip sync it.
@@ -104,6 +105,9 @@ type DisruptionController struct {
 	recorder    record.EventRecorder
 
 	getUpdater func() updater
+
+	indexName string
+	indexKey  string
 }
 
 // controllerAndScale is used to return (controller, scale) pairs from the
@@ -127,12 +131,16 @@ func NewDisruptionController(
 	kubeClient clientset.Interface,
 	restMapper apimeta.RESTMapper,
 	scaleNamespacer scaleclient.ScalesGetter,
+	indexName string,
+	indexKey string,
 ) *DisruptionController {
 	dc := &DisruptionController{
 		kubeClient:   kubeClient,
 		queue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "disruption"),
 		recheckQueue: workqueue.NewNamedDelayingQueue("disruption_recheck"),
 		broadcaster:  record.NewBroadcaster(),
+		indexName:    indexName,
+		indexKey:     indexKey,
 	}
 	dc.recorder = dc.broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "controllermanager"})
 
@@ -486,6 +494,13 @@ func (dc *DisruptionController) getPodsForPdb(pdb *policy.PodDisruptionBudget) (
 	}
 	if err != nil {
 		return []*v1.Pod{}, err
+	}
+	if _, ok := pdb.Spec.Selector.MatchLabels[dc.indexKey]; ok {
+		pods, err := dc.podLister.PodsForTCELabel(pdb.Namespace, dc.indexName).List(pdb.Spec.Selector)
+		if err != nil {
+			return []*v1.Pod{}, err
+		}
+		return pods, nil
 	}
 	pods, err := dc.podLister.Pods(pdb.Namespace).List(sel)
 	if err != nil {

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"k8s.io/klog"
 
 	v1 "k8s.io/api/core/v1"
@@ -577,6 +578,17 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 	return capacity, allocatable, deletedResources.UnsortedList()
 }
 
+//func (m *ManagerImpl) GetRefinedResource() DevicePluginHeterogenousResource {
+//	m.mutex.Lock()
+//	defer m.mutex.Unlock()
+//	return DevicePluginHeterogenousResource{
+//		RefinedNumericResources:       m.refinedNumericResources,
+//		RefinedDiscreteResources:      m.refinedDiscreteResources,
+//		RefinedDiscreteResourcesClass: m.refinedDiscreteResourcesClass,
+//		RefinedNumaTopologyStatus:     m.refinedNumaTopologyStatus,
+//	}
+//}
+
 // Checkpoints device to container allocation information to disk.
 func (m *ManagerImpl) writeCheckpoint() error {
 	m.mutex.Lock()
@@ -839,7 +851,10 @@ func (m *ManagerImpl) allocateContainerResources(pod *v1.Pod, container *v1.Cont
 		// TODO: refactor this part of code to just append a ContainerAllocationRequest
 		// in a passed in AllocateRequest pointer, and issues a single Allocate call per pod.
 		klog.V(3).Infof("Making allocation request for devices %v for device plugin %s", devs, resource)
-		resp, err := eI.e.allocate(devs)
+		// new metadata with pod name and container name
+		md := metadata.Pairs("pod", pod.Name, "container", container.Name, "podUid", string(pod.UID))
+		ctx := metadata.NewOutgoingContext(context.Background(), md)
+		resp, err := eI.e.allocate(ctx, devs)
 		metrics.DevicePluginAllocationDuration.WithLabelValues(resource).Observe(metrics.SinceInSeconds(startRPCTime))
 		if err != nil {
 			// In case of allocation failure, we want to restore m.allocatedDevices

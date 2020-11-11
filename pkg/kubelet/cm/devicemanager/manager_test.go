@@ -17,6 +17,7 @@ limitations under the License.
 package devicemanager
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -391,7 +392,7 @@ func TestUpdateCapacityAllocatable(t *testing.T) {
 	// preStartContainer calls return errors.
 	e2.stop()
 	as.False(e2.stopTime.IsZero())
-	_, err = e2.allocate([]string{"Device1"})
+	_, err = e2.allocate(context.Background(), []string{"Device1"})
 	reflect.DeepEqual(err, fmt.Errorf(errEndpointStopped, e2))
 	_, err = e2.preStartContainer([]string{"Device1"})
 	reflect.DeepEqual(err, fmt.Errorf(errEndpointStopped, e2))
@@ -563,7 +564,7 @@ func (m *MockEndpoint) preStartContainer(devs []string) (*pluginapi.PreStartCont
 	return &pluginapi.PreStartContainerResponse{}, nil
 }
 
-func (m *MockEndpoint) allocate(devs []string) (*pluginapi.AllocateResponse, error) {
+func (m *MockEndpoint) allocate(ctx context.Context, devs []string) (*pluginapi.AllocateResponse, error) {
 	if m.allocateFunc != nil {
 		return m.allocateFunc(devs)
 	}

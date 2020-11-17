@@ -1856,6 +1856,8 @@ func ValidatePersistentVolumeUpdate(newPv, oldPv *core.PersistentVolume) field.E
 		newPv.Spec.CSI.ControllerExpandSecretRef = nil
 	}
 
+	// csi.VolumeAttributes allow updated
+	oldPv.Spec.PersistentVolumeSource.CSI = newPv.Spec.PersistentVolumeSource.CSI
 	// PersistentVolumeSource should be immutable after creation.
 	if !apiequality.Semantic.DeepEqual(newPv.Spec.PersistentVolumeSource, oldPv.Spec.PersistentVolumeSource) {
 		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "persistentvolumesource"), "is immutable after creation"))

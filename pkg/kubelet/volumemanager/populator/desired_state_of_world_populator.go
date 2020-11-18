@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
@@ -326,6 +327,14 @@ func (dswp *desiredStateOfWorldPopulator) processPodVolumes(
 			dswp.desiredStateOfWorld.AddErrorToPod(uniquePodName, err.Error())
 			allVolumesAdded = false
 			continue
+		}
+
+		if volumeSpec.PersistentVolume != nil {
+			if volumeSpec.PersistentVolume.Spec.CephFS != nil {
+				if helper.IsVMRuntime(pod) {
+					util.SetPVManagedByNoopPlugin(volumeSpec.PersistentVolume)
+				}
+			}
 		}
 
 		// Add volume to desired state of world

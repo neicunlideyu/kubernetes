@@ -24,10 +24,12 @@ import (
 	"k8s.io/utils/mount"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utiltesting "k8s.io/client-go/util/testing"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
+	volumeutil "k8s.io/kubernetes/pkg/volume/util"
 )
 
 func TestCanSupport(t *testing.T) {
@@ -50,6 +52,13 @@ func TestCanSupport(t *testing.T) {
 	}
 	if !plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{CephFS: &v1.CephFSVolumeSource{}}}}) {
 		t.Errorf("Expected true")
+	}
+	if plug.CanSupport(&volume.Spec{PersistentVolume: &v1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{volumeutil.VolumePluginNoopAnnotationKey: "true"}},
+		Spec: v1.PersistentVolumeSpec{
+			PersistentVolumeSource: v1.PersistentVolumeSource{
+				CephFS: &v1.CephFSPersistentVolumeSource{}}}}}) {
+		t.Errorf("Expected false")
 	}
 }
 

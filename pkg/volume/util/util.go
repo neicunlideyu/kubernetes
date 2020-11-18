@@ -71,6 +71,10 @@ const (
 	// VolumeDynamicallyCreatedByKey is the key of the annotation on PersistentVolume
 	// object created dynamically
 	VolumeDynamicallyCreatedByKey = "kubernetes.io/createdby"
+
+	// VolumePluginNoopAnnotationKey is the key of the annotation on PersistentVolume object
+	// handled by noop volume plugin.
+	VolumePluginNoopAnnotationKey = "volume.tce.kubernetes.io/noop"
 )
 
 // IsReady checks for the existence of a regular file
@@ -679,4 +683,30 @@ func IsMultiAttachAllowed(volumeSpec *volume.Spec) bool {
 
 	// we don't know if it's supported or not and let the attacher fail later in cases it's not supported
 	return true
+}
+
+// IsPVManagedByNoopPlugin check a pv need to be handled by the noop volume plugin.
+func IsPVManagedByNoopPlugin(pv *v1.PersistentVolume) bool {
+	if pv == nil {
+		return false
+	}
+
+	if pv.Annotations != nil && pv.Annotations[VolumePluginNoopAnnotationKey] == "true" {
+		return true
+	}
+
+	return false
+}
+
+// SetPVManagedByNoopPlugin set noop annotation key to stat pv will be handled by volume plugin.
+func SetPVManagedByNoopPlugin(pv *v1.PersistentVolume) {
+	if pv == nil {
+		return
+	}
+	if pv.Annotations == nil {
+		pv.Annotations = map[string]string{}
+	}
+
+	pv.Annotations[VolumePluginNoopAnnotationKey] = "true"
+	return
 }

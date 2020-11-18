@@ -24,6 +24,7 @@ import (
 	_ "k8s.io/kubernetes/pkg/credentialprovider/gcp"
 
 	"k8s.io/component-base/featuregate"
+	"k8s.io/kubernetes/pkg/volume/noop"
 	"k8s.io/utils/exec"
 
 	// Volume plugins
@@ -89,6 +90,7 @@ func ProbeVolumePlugins(featureGate featuregate.FeatureGate) ([]volume.VolumePlu
 	allPlugins = append(allPlugins, local.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, storageos.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, csi.ProbeVolumePlugins()...)
+	allPlugins = append(allPlugins, noop.ProbeVolumePlugins()...)
 	return allPlugins, nil
 }
 

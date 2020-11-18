@@ -70,7 +70,15 @@ func (plugin *cephfsPlugin) GetVolumeName(spec *volume.Spec) (string, error) {
 }
 
 func (plugin *cephfsPlugin) CanSupport(spec *volume.Spec) bool {
-	return (spec.Volume != nil && spec.Volume.CephFS != nil) || (spec.PersistentVolume != nil && spec.PersistentVolume.Spec.CephFS != nil)
+	if spec.Volume != nil && spec.Volume.CephFS != nil {
+		return true
+	}
+
+	if spec.PersistentVolume != nil && spec.PersistentVolume.Spec.CephFS != nil && !util.IsPVManagedByNoopPlugin(spec.PersistentVolume) {
+		return true
+	}
+
+	return false
 }
 
 func (plugin *cephfsPlugin) RequiresRemount() bool {

@@ -82,6 +82,8 @@ const (
 	// EvenPodsSpreadPriority defines the name of prioritizer function that prioritizes nodes
 	// which have pods and labels matching the incoming pod's topologySpreadConstraints.
 	EvenPodsSpreadPriority = "EvenPodsSpreadPriority"
+	// MostGPURequestedPriority defines the name of prioritizer function that gives gpu used nodes higher priority.
+	MostGPURequestedPriority = "MostGPURequestedPriority"
 )
 
 const (
@@ -214,6 +216,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			NodeAffinityPriority:        1,
 			TaintTolerationPriority:     1,
 			ImageLocalityPriority:       1,
+			MostGPURequestedPriority:    100,
 		},
 
 		PredicateToConfigProducer: make(map[string]ConfigProducer),
@@ -391,6 +394,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 			if args.RequestedToCapacityRatioArgs != nil {
 				pluginConfig = append(pluginConfig, NewPluginConfig(noderesources.RequestedToCapacityRatioName, args.RequestedToCapacityRatioArgs))
 			}
+			return
+		})
+	registry.registerPriorityConfigProducer(MostGPURequestedPriority,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Score = appendToPluginSet(plugins.Score, noderesources.MostGPUAllocatedName, &args.Weight)
 			return
 		})
 

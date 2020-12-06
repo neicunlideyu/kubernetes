@@ -3,6 +3,8 @@ package dynamicpodspec
 import (
 	"fmt"
 	"math/rand"
+	"net"
+	"strconv"
 	"time"
 
 	"k8s.io/api/core/v1"
@@ -14,6 +16,7 @@ import (
 const (
 	autoPortRandom     = "random"
 	autoPortSequential = "sequential"
+	networkTCP         = "tcp"
 )
 
 type assignPortAdmitHandler struct {
@@ -151,12 +154,31 @@ func getAvailablePorts(allocated map[int]bool, base, max, arrangeBase, portCount
 			allPorts[i], allPorts[j] = allPorts[j], allPorts[i]
 		})
 	}
-
-	for i := 0; i < portCount; i++ {
+	for i := 0; i < availablePortLength; i++ {
 		index := (i + startIndex) % availablePortLength
-		result = append(result, allPorts[index])
+		port := allPorts[index]
+		if !isPortAvailable(networkTCP, port) {
+			klog.V(4).Infof("cannot used %d, skip it", port)
+			continue
+		}
+		result = append(result, port)
+		if len(result) == portCount {
+			return result, true
+		}
 	}
-	return result, true
+	return result, false
+}
+
+/*
+Use listen to test the local port is available or not.
+*/
+func isPortAvailable(network string, port int) bool {
+	conn, err := net.Listen(network, ":"+strconv.Itoa(port))
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }
 
 func getScheduledTime(pod *v1.Pod) time.Time {

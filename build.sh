@@ -1,4 +1,6 @@
 #!/bin/bash
+make clean
+
 export HTTPS_PROXY=http://bj-rd-proxy.byted.org:3128
 HOSTARCH=$(go env GOHOSTARCH)
 export GOARCH=${HOSTARCH}
@@ -16,12 +18,12 @@ esac
 
 GOOS=$(go env GOOS)
 if [[ "${HOSTARCH}" == "${GOARCH}" ]]; then
-    TARGET=_output/local/go/bin/hyperkube
+    TARGET="_output/local/go/bin/*"
 else
-    TARGET=_output/local/go/bin/${GOOS}_${GOARCH}/hyperkube
+    TARGET="_output/local/go/bin/${GOOS}_${GOARCH}/*"
 fi
 
 
-make hyperkube KUBE_BUILD_PLATFORMS=linux/${GOARCH} && \
+make all KUBE_BUILD_PLATFORMS=linux/${GOARCH} && \
   mkdir -p output && \
-  mv ${TARGET} output/
+  mv $TARGET output/

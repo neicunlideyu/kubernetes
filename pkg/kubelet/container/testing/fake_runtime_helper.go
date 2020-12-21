@@ -34,6 +34,14 @@ type FakeRuntimeHelper struct {
 	Err             error
 }
 
+func (f *FakeRuntimeHelper) GenerateCreatePodResourceOptions(pod *v1.Pod, container *v1.Container) (*kubecontainer.RunContainerOptions, error) {
+	var opts kubecontainer.RunContainerOptions
+	if len(container.TerminationMessagePath) != 0 {
+		opts.PodContainerDir = f.PodContainerDir
+	}
+	return &opts, nil
+}
+
 func (f *FakeRuntimeHelper) GenerateRunContainerOptions(pod *v1.Pod, container *v1.Container, podIP string, podIPs []string) (*kubecontainer.RunContainerOptions, func(), error) {
 	var opts kubecontainer.RunContainerOptions
 	if len(container.TerminationMessagePath) != 0 {

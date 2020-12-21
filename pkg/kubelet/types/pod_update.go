@@ -32,7 +32,10 @@ const (
 	ConfigFirstSeenAnnotationKey = "kubernetes.io/config.seen"
 	ConfigHashAnnotationKey      = "kubernetes.io/config.hash"
 
-	CriticalTCEPodAnnotationKey  = "scheduler.alpha.kubernetes.io/tce-critical-pod"
+	CriticalTCEPodAnnotationKey = "scheduler.alpha.kubernetes.io/tce-critical-pod"
+
+	// SriovDeviceAnnotation determines the PCIe Address of Allocated VF
+	SriovDeviceAnnotation = "io.kubernetes.network.switchdev.pciaddress"
 )
 
 const (

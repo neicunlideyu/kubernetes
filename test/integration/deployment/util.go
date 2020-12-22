@@ -161,6 +161,7 @@ func dcSetup(t *testing.T) (*httptest.Server, framework.CloseFunc, *replicaset.R
 		informers.Apps().V1().ReplicaSets(),
 		informers.Core().V1().Pods(),
 		clientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "deployment-controller")),
+		"label",
 	)
 	if err != nil {
 		t.Fatalf("error creating Deployment controller: %v", err)
@@ -170,6 +171,7 @@ func dcSetup(t *testing.T) (*httptest.Server, framework.CloseFunc, *replicaset.R
 		informers.Core().V1().Pods(),
 		clientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "replicaset-controller")),
 		replicaset.BurstReplicas,
+		"label",
 	)
 	return s, closeFn, rm, dc, informers, clientSet
 }

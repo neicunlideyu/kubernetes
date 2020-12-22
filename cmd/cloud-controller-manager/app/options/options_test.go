@@ -58,6 +58,10 @@ func TestDefaultFlags(t *testing.T) {
 					ResourceNamespace: "kube-system",
 				},
 				Controllers: []string{"*"},
+				Index: componentbaseconfig.IndexConfiguration{
+					Name: "label",
+					Key:  "name",
+				},
 			},
 			Debugging: &cmoptions.DebuggingOptions{
 				DebuggingConfiguration: &componentbaseconfig.DebuggingConfiguration{
@@ -190,6 +194,10 @@ func TestAddFlags(t *testing.T) {
 					ResourceNamespace: "kube-system",
 				},
 				Controllers: []string{"foo", "bar"},
+				Index: componentbaseconfig.IndexConfiguration{
+					Name: "label",
+					Key:  "name",
+				},
 			},
 			Debugging: &cmoptions.DebuggingOptions{
 				DebuggingConfiguration: &componentbaseconfig.DebuggingConfiguration{

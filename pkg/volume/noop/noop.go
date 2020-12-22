@@ -29,11 +29,11 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/volume"
 	volumeutil "k8s.io/kubernetes/pkg/volume/util"
-	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/mount"
 	utilstrings "k8s.io/utils/strings"
 )

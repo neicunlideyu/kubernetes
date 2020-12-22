@@ -22,7 +22,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	nonnative "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
 	"net"
 	"net/http"
 	"net/url"

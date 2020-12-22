@@ -8,6 +8,7 @@ go 1.13
 
 require (
 	bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690
+	code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e
 	github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.9.0
 	github.com/Azure/go-autorest/autorest/adal v0.5.0
@@ -96,6 +97,7 @@ require (
 	github.com/opencontainers/runc v1.0.0-rc10
 	github.com/opencontainers/runtime-spec v1.0.0 // indirect
 	github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52
+	github.com/opentracing/opentracing-go v0.0.0-00010101000000-000000000000
 	github.com/pkg/errors v0.8.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/pquerna/ffjson v0.0.0-20180717144149-af8b230fcd20 // indirect
@@ -116,6 +118,8 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/thecodeteam/goscaleio v0.1.0
+	github.com/uber/jaeger-client-go v0.0.0-00010101000000-000000000000
+	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20171111001504-be1fbeda1936
@@ -162,6 +166,7 @@ require (
 	k8s.io/kubelet v0.0.0
 	k8s.io/legacy-cloud-providers v0.0.0
 	k8s.io/metrics v0.0.0
+	k8s.io/non-native-resource-api v0.0.0-00010101000000-000000000000
 	k8s.io/repo-infra v0.0.1-alpha.1
 	k8s.io/sample-apiserver v0.0.0
 	k8s.io/system-validators v1.0.4
@@ -422,6 +427,7 @@ replace (
 	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc10
 	github.com/opencontainers/runtime-spec => github.com/opencontainers/runtime-spec v1.0.0
 	github.com/opencontainers/selinux => github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52
+	github.com/opentracing/opentracing-go => code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing
 	github.com/pelletier/go-toml => github.com/pelletier/go-toml v1.2.0
 	github.com/peterbourgon/diskv => github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/pkg/errors => github.com/pkg/errors v0.8.1
@@ -468,6 +474,7 @@ replace (
 	github.com/tidwall/pretty => github.com/tidwall/pretty v1.0.0
 	github.com/timakin/bodyclose => github.com/timakin/bodyclose v0.0.0-20190721030226-87058b9bfcec
 	github.com/tmc/grpc-websocket-proxy => github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8
+	github.com/uber/jaeger-client-go => code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
 	github.com/ugorji/go/codec => github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8
 	github.com/ultraware/funlen => github.com/ultraware/funlen v0.0.2
 	github.com/urfave/cli => github.com/urfave/cli v1.20.0
@@ -558,6 +565,7 @@ replace (
 	k8s.io/kubelet => ./staging/src/k8s.io/kubelet
 	k8s.io/legacy-cloud-providers => ./staging/src/k8s.io/legacy-cloud-providers
 	k8s.io/metrics => ./staging/src/k8s.io/metrics
+	k8s.io/non-native-resource-api => ./staging/src/k8s.io/non-native-resource-api
 	k8s.io/repo-infra => k8s.io/repo-infra v0.0.1-alpha.1
 	k8s.io/sample-apiserver => ./staging/src/k8s.io/sample-apiserver
 	k8s.io/sample-cli-plugin => ./staging/src/k8s.io/sample-cli-plugin

@@ -135,6 +135,8 @@ func newFakeDisruptionController() (*disruptionController, *pdbStates) {
 		coreClient,
 		testrestmapper.TestOnlyStaticRESTMapper(scheme),
 		fakeScaleClient,
+		"label",
+		"name",
 	)
 	dc.getUpdater = func() updater { return ps.Set }
 	dc.podListerSynced = alwaysReady

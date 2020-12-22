@@ -246,14 +246,14 @@ func TestCPUPressure(t *testing.T) {
 	}
 
 	manager := &managerImpl{
-		clock:           fakeClock,
-		killPodFunc:     podKiller.killPodNow,
-		imageGC:         diskGC,
-		containerGC:     diskGC,
-		config:          config,
-		recorder:        &record.FakeRecorder{},
-		summaryProvider: summaryProvider,
-		nodeRef:         nodeRef,
+		clock:                        fakeClock,
+		killPodFunc:                  podKiller.killPodNow,
+		imageGC:                      diskGC,
+		containerGC:                  diskGC,
+		config:                       config,
+		recorder:                     &record.FakeRecorder{},
+		summaryProvider:              summaryProvider,
+		nodeRef:                      nodeRef,
 		nodeConditionsLastObservedAt: nodeConditionsObservedAt{},
 		thresholdsFirstObservedAt:    thresholdsObservedAt{},
 	}

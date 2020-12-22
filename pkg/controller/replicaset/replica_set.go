@@ -153,9 +153,9 @@ func NewBaseController(rsInformer appsinformers.ReplicaSetInformer, podInformer 
 	}
 
 	rsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    rsc.addRS,
-		UpdateFunc: rsc.updateRS,
-		DeleteFunc: rsc.deleteRS,
+		AddFunc:          rsc.addRS,
+		UpdateFunc:       rsc.updateRS,
+		DeleteFunc:       rsc.deleteRS,
 		UpdateResyncFunc: rsc.updateReplicasSetResync,
 	})
 	rsc.rsLister = rsInformer.Lister()

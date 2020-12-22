@@ -85,7 +85,6 @@ func (p *Listener) Accept() (net.Conn, error) {
 	return newConn, nil
 }
 
-
 // Close closes the underlying listener.
 func (p *Listener) Close() error {
 	return p.Listener.Close()

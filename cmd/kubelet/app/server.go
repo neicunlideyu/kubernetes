@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	nonnative "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
 	"net"
 	"net/http"
 	"net/url"
@@ -596,6 +597,25 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, featureGate f
 		kubeDeps.HeartbeatClient, err = clientset.NewForConfig(&heartbeatClientConfig)
 		if err != nil {
 			return fmt.Errorf("failed to initialize kubelet heartbeat client: %v", err)
+		}
+
+		if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
+			refinedResourceClientConfig := *clientConfig
+			refinedResourceClientConfig.ContentType = "application/json"
+			kubeDeps.RefinedResourceClient, err = nonnative.NewForConfig(&refinedResourceClientConfig)
+			if err != nil {
+				return fmt.Errorf("fail to intialize refined resource client: %v", err)
+			}
+			refinedNodeResourceInformerFactory := nonnativeinformer.NewFilteredSharedInformerFactory(kubeDeps.RefinedResourceClient, 0, "",
+				func(options *metav1.ListOptions) {
+					options.FieldSelector = fmt.Sprintf("metadata.name=%s", nodeName)
+				})
+			kubeDeps.RefinedResourceInformer = refinedNodeResourceInformerFactory.Non().V1alpha1().RefinedNodeResources()
+			refinedResourceInformer := kubeDeps.RefinedResourceInformer.Informer()
+			refinedNodeResourceInformerFactory.Start(stopCh)
+			if !cache.WaitForCacheSync(stopCh, refinedResourceInformer.HasSynced) {
+				return fmt.Errorf("fail to wait for cache sync")
+			}
 		}
 	}
 

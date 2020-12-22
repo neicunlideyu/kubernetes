@@ -32,7 +32,7 @@ type RefinedNodeResource struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// Standard object metadata.
-    // metadata.Name indicates the name of the refined node resource that this object
+	// metadata.Name indicates the name of the refined node resource that this object
 	// refers to; it MUST be the same name to Node object
 	// call for that driver.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata

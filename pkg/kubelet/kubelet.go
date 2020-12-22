@@ -128,6 +128,8 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util/hostutil"
 	"k8s.io/kubernetes/pkg/volume/util/subpath"
 	"k8s.io/kubernetes/pkg/volume/util/volumepathhandler"
+	nonnative "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
+	nonnativeinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -955,7 +957,11 @@ type Kubelet struct {
 	rootDirectory   string
 
 	lastObservedNodeAddressesMux sync.RWMutex
-	lastObservedNodeAddresses    []v1.NodeAddress
+
+	refinedResourceClient   nonnative.Interface
+	refinedResourceInformer nonnativeinformer.RefinedNodeResourceInformer
+
+	lastObservedNodeAddresses []v1.NodeAddress
 
 	// onRepeatedHeartbeatFailure is called when a heartbeat operation fails more than once. optional.
 	onRepeatedHeartbeatFailure func()

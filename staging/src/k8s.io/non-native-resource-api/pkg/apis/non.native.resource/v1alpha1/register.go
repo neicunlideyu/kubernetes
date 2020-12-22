@@ -25,7 +25,6 @@ import (
 const (
 	// GroupName is the group name use in this package
 	GroupName string = "non.native.resource.k8s.io"
-
 )
 
 // SchemeGroupVersion is group version used to register these objects

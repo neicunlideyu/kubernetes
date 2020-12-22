@@ -9,7 +9,7 @@ import (
 )
 
 func TestIpAnnotationsAdmit(t *testing.T) {
-	for i:=0; i<3; i++ {
+	for i := 0; i < 3; i++ {
 		hostIPv4, hostIPv6, err := mockIPFuncRes(i)
 
 		if err != nil {

@@ -17,7 +17,7 @@ import (
 
 var (
 	ErrPodHostUniqueRulesNotMatch = fmt.Errorf("PodHostUniqueRulesNotMatch: node(s) didn't match pod host unique rules")
-	ErrPodAffinityNotMatch = fmt.Errorf("MatchInterPodAffinity: node(s) didn't match pod affinity/anti-affinity")
+	ErrPodAffinityNotMatch        = fmt.Errorf("MatchInterPodAffinity: node(s) didn't match pod affinity/anti-affinity")
 )
 
 // Name is the name of the plugin used in the plugin registry and configurations.

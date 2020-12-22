@@ -17,10 +17,13 @@ limitations under the License.
 package nodestatus
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
 	goruntime "runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -44,6 +47,9 @@ import (
 	"k8s.io/kubernetes/pkg/volume"
 
 	"k8s.io/klog"
+	nonnativeresource "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
+	nonnativeresourceclient "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
+	nonnativeresourceinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -388,6 +394,127 @@ func MachineInfo(nodeName string,
 		}
 		return nil
 	}
+}
+
+func formatNumericResourceProperties(propertiesArr ...[]nonnativeresource.NumericResourcePropertyPattern) {
+	for _, properties := range propertiesArr {
+		sort.Slice(properties, func(i, j int) bool {
+			return properties[i].PropertyName < properties[j].PropertyName
+		})
+	}
+}
+
+func formatDiscreteResourceProperties(propertiesArr ...[]nonnativeresource.DiscreteResourcePropertyPattern) {
+	for _, properties := range propertiesArr {
+		sort.Slice(properties, func(i, j int) bool {
+			return properties[i].PropertyName < properties[j].PropertyName
+		})
+	}
+}
+
+// Collect refined resource and create crd
+func RefinedResourceInfo(refinedResourceClient nonnativeresourceclient.Interface, refinedResourceInformer nonnativeresourceinformer.RefinedNodeResourceInformer, devicePluginHeterogenousResourceFunc func() (map[string]string, map[string]string, map[string]string)) Setter {
+	var Seperator = ";"
+	return func(node *v1.Node) error {
+		if refinedResourceClient == nil {
+			return nil
+		}
+		refinedNumericResources, refinedDiscreteResources, refinedDiscreteResourcesClass := devicePluginHeterogenousResourceFunc()
+		refinedNodeResource := &nonnativeresource.RefinedNodeResource{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: node.GetName(),
+			},
+		}
+		for resourceName, resourceValue := range refinedNumericResources {
+			size, err := resource.ParseQuantity(resourceValue)
+			if err != nil {
+				klog.Errorf("Fail to parse quantity: %v", err)
+				continue
+			}
+			sizeFormat, err := resource.ParseQuantity(size.String())
+			if err != nil {
+				klog.Errorf("Fail to format quantity: %v", err)
+				continue
+			}
+			property := nonnativeresource.NumericResourcePropertyPattern{
+				PropertyName:             resourceName,
+				PropertyCapacityValue:    sizeFormat,
+				PropertyAllocatableValue: sizeFormat,
+			}
+			refinedNodeResource.Status.NumericResource.NumericProperties = append(refinedNodeResource.Status.NumericResource.NumericProperties, property)
+		}
+		formatNumericResourceProperties(refinedNodeResource.Status.NumericResource.NumericProperties)
+
+		for resourceName, resourceValue := range refinedDiscreteResources {
+			// TODO: Add Discrete Resource
+			values := strings.Split(resourceValue, Seperator)
+			property := nonnativeresource.DiscreteResourcePropertyPattern{
+				PropertyName:   resourceName,
+				PropertyValues: values,
+			}
+			switch refinedDiscreteResourcesClass[resourceName] {
+			case "CPUProperties":
+				refinedNodeResource.Spec.DiscreteResource.CPUProperties = append(refinedNodeResource.Spec.DiscreteResource.CPUProperties, property)
+			case "MemoryProperties":
+				refinedNodeResource.Spec.DiscreteResource.MemoryProperties = append(refinedNodeResource.Spec.DiscreteResource.MemoryProperties, property)
+			case "GPUProperties":
+				refinedNodeResource.Spec.DiscreteResource.GPUProperties = append(refinedNodeResource.Spec.DiscreteResource.GPUProperties, property)
+			case "DiskProperties":
+				refinedNodeResource.Spec.DiscreteResource.DiskProperties = append(refinedNodeResource.Spec.DiscreteResource.DiskProperties, property)
+			case "NetworkProperties":
+				refinedNodeResource.Spec.DiscreteResource.NetworkProperties = append(refinedNodeResource.Spec.DiscreteResource.NetworkProperties, property)
+			case "OtherProperties":
+				refinedNodeResource.Spec.DiscreteResource.OtherProperties = append(refinedNodeResource.Spec.DiscreteResource.OtherProperties, property)
+			}
+		}
+		formatDiscreteResourceProperties(refinedNodeResource.Spec.DiscreteResource.CPUProperties,
+			refinedNodeResource.Spec.DiscreteResource.MemoryProperties,
+			refinedNodeResource.Spec.DiscreteResource.GPUProperties,
+			refinedNodeResource.Spec.DiscreteResource.DiskProperties,
+			refinedNodeResource.Spec.DiscreteResource.NetworkProperties,
+			refinedNodeResource.Spec.DiscreteResource.OtherProperties,
+		)
+
+		oldObj, err := refinedResourceInformer.Lister().Get(node.GetName())
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return fmt.Errorf("Fail to get RefinedNodeResource: %v", err)
+			}
+			if _, err = refinedResourceClient.NonV1alpha1().RefinedNodeResources().Create(context.TODO(), refinedNodeResource, metav1.CreateOptions{}); err != nil {
+				return fmt.Errorf("Fail to create RefinedNodeResource: %v", err)
+			}
+			return nil
+		}
+		if reflect.DeepEqual(refinedNodeResource.Spec, nonnativeresource.RefinedNodeResourceSpec{}) && reflect.DeepEqual(refinedNodeResource.Status, nonnativeresource.RefinedNodeResourceStatus{}) {
+			return nil
+		}
+
+		newObj := oldObj.DeepCopy()
+		newObj.Spec = refinedNodeResource.Spec
+		newObj.Status = refinedNodeResource.Status
+		if reflect.DeepEqual(oldObj, newObj) {
+			return nil
+		}
+		oldData, err := json.Marshal(oldObj)
+		if err != nil {
+			return fmt.Errorf("fail to marshal old refined node resource %s: %v", node.GetName(), err)
+		}
+		newData, err := json.Marshal(newObj)
+		if err != nil {
+			return fmt.Errorf("fail to marshal new refined node resource %s: %v", node.GetName(), err)
+		}
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, nonnativeresource.RefinedNodeResource{})
+		if err != nil {
+			return fmt.Errorf("failed to create patch for refined node resource %s: %v", node.GetName(), err)
+		}
+
+		klog.Infof("There are changes in refined node resource, trying to update: %+v", *newObj)
+		if _, err = refinedResourceClient.NonV1alpha1().RefinedNodeResources().Patch(context.TODO(), node.GetName(), types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
+			return fmt.Errorf("Fail to update RefinedNodeResource: %v", err)
+		}
+		return nil
+	}
+
 }
 
 // VersionInfo returns a Setter that updates version-related information on the node.

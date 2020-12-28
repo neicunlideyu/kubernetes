@@ -140,6 +140,14 @@ func (m *mockSummaryProvider) GetCPUAndMemoryStats() (*statsapi.Summary, error) 
 	return args.Get(0).(*statsapi.Summary), args.Error(1)
 }
 
+func (m *mockSummaryProvider) ThresholdsMet(softLimit int64, hardLimit int64) (bool, bool) {
+	return false, false
+}
+
+func (m *mockSummaryProvider) GetLoad(podname string) float64 {
+	return 0.0
+}
+
 func TestCollectResourceMetrics(t *testing.T) {
 	testTime := metav1.NewTime(time.Unix(2, 0)) // a static timestamp: 2000
 

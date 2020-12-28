@@ -86,6 +86,8 @@ func setup(t *testing.T) (*kubeapiservertesting.TestServer, *disruption.Disrupti
 		client,
 		mapper,
 		scaleClient,
+		"label",
+		"name",
 	)
 	return server, pdbc, informers, clientSet, apiExtensionClient, dynamicClient
 }

@@ -31,7 +31,7 @@ import (
 	"time"
 
 	apps "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -66,6 +66,7 @@ func testNewReplicaSetControllerFromClient(client clientset.Interface, stopCh ch
 		informers.Core().V1().Pods(),
 		client,
 		burstReplicas,
+		"label",
 	)
 
 	ret.podListerSynced = alwaysReady
@@ -597,6 +598,7 @@ func TestWatchControllers(t *testing.T) {
 		informers.Core().V1().Pods(),
 		client,
 		BurstReplicas,
+		"label",
 	)
 	informers.Start(stopCh)
 
@@ -1149,6 +1151,7 @@ func TestExpectationsOnRecreate(t *testing.T) {
 		f.Core().V1().Pods(),
 		client,
 		100,
+		"label",
 	)
 	f.Start(stopCh)
 	fakePodControl := controller.FakePodControl{}

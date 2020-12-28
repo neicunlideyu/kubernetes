@@ -37,7 +37,6 @@ import (
 	"k8s.io/utils/mount"
 	utilpath "k8s.io/utils/path"
 
-	cadvisorapi "github.com/google/cadvisor/info/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"

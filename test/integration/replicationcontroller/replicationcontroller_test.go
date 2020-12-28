@@ -123,6 +123,7 @@ func rmSetup(t *testing.T) (*httptest.Server, framework.CloseFunc, *replication.
 		informers.Core().V1().ReplicationControllers(),
 		clientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "replication-controller")),
 		replication.BurstReplicas,
+		"label",
 	)
 
 	if err != nil {

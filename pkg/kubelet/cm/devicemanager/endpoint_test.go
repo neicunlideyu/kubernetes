@@ -17,6 +17,7 @@ limitations under the License.
 package devicemanager
 
 import (
+	"context"
 	"path"
 	"testing"
 	"time"
@@ -154,7 +155,7 @@ func TestAllocate(t *testing.T) {
 		t.FailNow()
 	}
 
-	respOut, err := e.allocate([]string{"ADeviceId"})
+	respOut, err := e.allocate(context.TODO(), []string{"ADeviceId"})
 	require.NoError(t, err)
 	require.Equal(t, resp, respOut)
 }

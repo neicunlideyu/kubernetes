@@ -46,10 +46,10 @@ import (
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
+	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/volume"
-	"k8s.io/kubernetes/pkg/kubelet/cm/devicemanager"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"

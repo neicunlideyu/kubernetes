@@ -12,7 +12,6 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/controller/volume/attachdetach",
     deps = [
         "//pkg/controller/volume/attachdetach/cache:go_default_library",
-        "//pkg/controller/volume/attachdetach/metrics:go_default_library",
         "//pkg/controller/volume/attachdetach/populator:go_default_library",
         "//pkg/controller/volume/attachdetach/reconciler:go_default_library",
         "//pkg/controller/volume/attachdetach/statusupdater:go_default_library",

@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
@@ -6,12 +6,14 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique",
     visibility = ["//visibility:public"],
     deps = [
-        "//pkg/apis/core/v1/helper:go_default_library",
-        "//pkg/scheduler/framework/plugins/helper:go_default_library",
+        "//pkg/api/pod:go_default_library",
         "//pkg/scheduler/framework/v1alpha1:go_default_library",
         "//pkg/scheduler/nodeinfo:go_default_library",
+        "//pkg/scheduler/util:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
+        "//staging/src/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
         "//staging/src/k8s.io/apimachinery/pkg/runtime:go_default_library",
+        "//vendor/k8s.io/klog:go_default_library",
     ],
 )
 

@@ -7,6 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/apis/core/v1/helper:go_default_library",
+        "//pkg/kubelet/types:go_default_library",
         "//pkg/scheduler/framework/plugins/helper:go_default_library",
         "//pkg/scheduler/framework/v1alpha1:go_default_library",
         "//pkg/scheduler/nodeinfo:go_default_library",

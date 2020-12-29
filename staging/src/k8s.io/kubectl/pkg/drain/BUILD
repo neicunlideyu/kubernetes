@@ -13,6 +13,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         # Please be wary of additional deps here ... this is intended to be usable as a library
+        "//pkg/controller/deployment/util:go_default_library",
         "//staging/src/k8s.io/api/apps/v1:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/api/policy/v1beta1:go_default_library",

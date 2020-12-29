@@ -15,6 +15,7 @@ go_library(
         "etcd.go",
         "events.go",
         "feature.go",
+        "proxy_protocol.go",
         "recommended.go",
         "server_run_options.go",
         "serving.go",

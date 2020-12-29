@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "factory.go",
         "handler.go",
+        "memory_accelerator.go",
         "watcher.go",
     ],
     importmap = "k8s.io/kubernetes/vendor/github.com/google/cadvisor/container/raw",

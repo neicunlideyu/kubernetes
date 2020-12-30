@@ -344,7 +344,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			plugins.PreFilter = appendToPluginSet(plugins.PreFilter, serviceaffinity.Name, nil)
 			return
 		})
-	registry.registerPredicateConfigProducer(PodToleratesNodeTaintsPred,
+	registry.registerPredicateConfigProducer(MatchHostUniquePred,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Filter = appendToPluginSet(plugins.Filter, hostunique.Name, nil)
 			return

@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	apipod "k8s.io/kubernetes/pkg/api/pod"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
@@ -149,7 +150,7 @@ func (f *Fit) Filter(ctx context.Context, cycleState *framework.CycleState, pod 
 		return framework.NewStatus(framework.Error, err.Error())
 	}
 
-	insufficientResources := fitsRequest(s, nodeInfo, f.ignoredResources)
+	insufficientResources := fitsRequest(s, nodeInfo, f.ignoredResources, isTCEDaemonPod(pod))
 
 	if len(insufficientResources) != 0 {
 		// We will keep all failure reasons.
@@ -175,14 +176,21 @@ type InsufficientResource struct {
 
 // Fits checks if node have enough resources to host the pod.
 func Fits(pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo, ignoredExtendedResources sets.String) []InsufficientResource {
-	return fitsRequest(computePodResourceRequest(pod), nodeInfo, ignoredExtendedResources)
+	return fitsRequest(computePodResourceRequest(pod), nodeInfo, ignoredExtendedResources, isTCEDaemonPod(pod))
 }
 
-func fitsRequest(podRequest *preFilterState, nodeInfo *schedulernodeinfo.NodeInfo, ignoredExtendedResources sets.String) []InsufficientResource {
+func isTCEDaemonPod(pod *v1.Pod) bool {
+	if _, ok := pod.Annotations[apipod.TCEDaemonPodAnnotationKey]; ok {
+		return true
+	}
+	return false
+}
+
+func fitsRequest(podRequest *preFilterState, nodeInfo *schedulernodeinfo.NodeInfo, ignoredExtendedResources sets.String, isTCEDaemonPod bool) []InsufficientResource {
 	insufficientResources := make([]InsufficientResource, 0, 4)
 
 	allowedPodNumber := nodeInfo.AllowedPodNumber()
-	if len(nodeInfo.Pods())+1 > allowedPodNumber {
+	if len(nodeInfo.Pods())+1 > allowedPodNumber && !isTCEDaemonPod {
 		insufficientResources = append(insufficientResources, InsufficientResource{
 			v1.ResourcePods,
 			"Too many pods",

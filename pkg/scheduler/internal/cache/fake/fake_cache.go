@@ -19,6 +19,7 @@ package fake
 import (
 	v1 "k8s.io/api/core/v1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
+	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 )
 
 // Cache is used for testing
@@ -83,4 +84,8 @@ func (c *Cache) PodCount() (int, error) { return 0, nil }
 // Dump is a fake method for testing.
 func (c *Cache) Dump() *internalcache.Dump {
 	return &internalcache.Dump{}
+}
+
+func (c *Cache) GetNodeInfo(nodeName string) *schedulernodeinfo.NodeInfo {
+	return nil
 }

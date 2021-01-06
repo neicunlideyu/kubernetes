@@ -158,6 +158,17 @@ func (DeploymentList) SwaggerDoc() map[string]string {
 	return map_DeploymentList
 }
 
+var map_DeploymentRollback = map[string]string{
+	"":                   "DEPRECATED. DeploymentRollback stores the information required to rollback a deployment.",
+	"name":               "Required: This must match the Name of a deployment.",
+	"updatedAnnotations": "The annotations to be updated to a deployment",
+	"rollbackTo":         "The config of this deployment rollback.",
+}
+
+func (DeploymentRollback) SwaggerDoc() map[string]string {
+	return map_DeploymentRollback
+}
+
 var map_DeploymentSpec = map[string]string{
 	"":                        "DeploymentSpec is the specification of the desired behavior of the Deployment.",
 	"replicas":                "Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.",
@@ -258,6 +269,15 @@ var map_ReplicaSetStatus = map[string]string{
 
 func (ReplicaSetStatus) SwaggerDoc() map[string]string {
 	return map_ReplicaSetStatus
+}
+
+var map_RollbackConfig = map[string]string{
+	"":         "DEPRECATED.",
+	"revision": "The revision to rollback to. If set to 0, rollback to the last revision.",
+}
+
+func (RollbackConfig) SwaggerDoc() map[string]string {
+	return map_RollbackConfig
 }
 
 var map_RollingUpdateDaemonSet = map[string]string{

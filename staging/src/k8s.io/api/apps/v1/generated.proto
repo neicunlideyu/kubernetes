@@ -263,6 +263,20 @@ message DeploymentList {
   repeated Deployment items = 2;
 }
 
+// DEPRECATED.
+// DeploymentRollback stores the information required to rollback a deployment.
+message DeploymentRollback {
+  // Required: This must match the Name of a deployment.
+  optional string name = 1;
+
+  // The annotations to be updated to a deployment
+  // +optional
+  map<string, string> updatedAnnotations = 2;
+
+  // The config of this deployment rollback.
+  optional RollbackConfig rollbackTo = 3;
+}
+
 // DeploymentSpec is the specification of the desired behavior of the Deployment.
 message DeploymentSpec {
   // Number of desired pods. This is a pointer to distinguish between explicit
@@ -472,6 +486,13 @@ message ReplicaSetStatus {
   // +patchMergeKey=type
   // +patchStrategy=merge
   repeated ReplicaSetCondition conditions = 6;
+}
+
+// DEPRECATED.
+message RollbackConfig {
+  // The revision to rollback to. If set to 0, rollback to the last revision.
+  // +optional
+  optional int64 revision = 1;
 }
 
 // Spec to control the desired behavior of daemon set rolling update.

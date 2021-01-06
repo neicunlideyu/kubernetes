@@ -59,6 +59,9 @@ func (p RESTStorageProvider) v1Storage(apiResourceConfigSource serverstorage.API
 	}
 	storage["deployments"] = deploymentStorage.Deployment
 	storage["deployments/status"] = deploymentStorage.Status
+	// NOTE: rollback API is deprecated in apps/v1, however TCE rely on it for legacy/historical reasons.
+	// In future releases, remove this line if all operation from TCE are using Update API
+	storage["deployments/rollback"] = deploymentStorage.Rollback
 	storage["deployments/scale"] = deploymentStorage.Scale
 
 	// statefulsets

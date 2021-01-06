@@ -310,6 +310,28 @@ type DeploymentSpec struct {
 	ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty" protobuf:"varint,9,opt,name=progressDeadlineSeconds"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// DEPRECATED.
+// DeploymentRollback stores the information required to rollback a deployment.
+type DeploymentRollback struct {
+	metav1.TypeMeta `json:",inline"`
+	// Required: This must match the Name of a deployment.
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// The annotations to be updated to a deployment
+	// +optional
+	UpdatedAnnotations map[string]string `json:"updatedAnnotations,omitempty" protobuf:"bytes,2,rep,name=updatedAnnotations"`
+	// The config of this deployment rollback.
+	RollbackTo RollbackConfig `json:"rollbackTo" protobuf:"bytes,3,opt,name=rollbackTo"`
+}
+
+// DEPRECATED.
+type RollbackConfig struct {
+	// The revision to rollback to. If set to 0, rollback to the last revision.
+	// +optional
+	Revision int64 `json:"revision,omitempty" protobuf:"varint,1,opt,name=revision"`
+}
+
 const (
 	// DefaultDeploymentUniqueLabelKey is the default key of the selector that is added
 	// to existing ReplicaSets (and label key that is added to its pods) to prevent the existing ReplicaSets

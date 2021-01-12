@@ -3,6 +3,7 @@ package hostunique
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,7 +13,6 @@ import (
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
-	"strconv"
 )
 
 var (
@@ -22,6 +22,8 @@ var (
 
 // Name is the name of the plugin used in the plugin registry and configurations.
 const Name = "MatchHostUnique"
+
+var _ framework.FilterPlugin = &HostUniqueChecker{}
 
 type HostUniqueChecker struct {
 	handle framework.FrameworkHandle
@@ -38,7 +40,7 @@ func New(_ *runtime.Unknown, handle framework.FrameworkHandle) (framework.Plugin
 	return c, nil
 }
 
-func (c *HostUniqueChecker) Predicate(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) *framework.Status {
+func (c *HostUniqueChecker) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *schedulernodeinfo.NodeInfo) *framework.Status {
 	if nodeInfo.Node() == nil {
 		return framework.NewStatus(framework.Error, "node not found")
 	}

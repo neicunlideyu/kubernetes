@@ -52,6 +52,6 @@ func (sg *ShareGPU) Filter(ctx context.Context, cycleState *framework.CycleState
 	if gpuSatisfied {
 		return nil
 	} else {
-		return framework.NewStatus(framework.Error, fmt.Sprintf("node %s has no sufficient share gpu", nodeInfo.Node().Name))
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, fmt.Sprintf("node %s has no sufficient share gpu", nodeInfo.Node().Name))
 	}
 }

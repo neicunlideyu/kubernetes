@@ -19,7 +19,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"k8s.io/kubernetes/pkg/scheduler/listers"
 	"math"
 	"math/rand"
 	"sort"
@@ -46,6 +45,7 @@ import (
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
+	"k8s.io/kubernetes/pkg/scheduler/listers"
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
@@ -428,14 +428,10 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 		topM := 20
 		for _, nodeScore := range nodeScoreList {
 			if nodeScore.Score == maxScore && nodeScore.Name != selected {
-				if cached < topM {
+				cached++
+				if cached <= topM {
 					g.cache.CacheNodesForDP(dpName, nodeScore.Name)
 				}
-				cached++
-			}
-
-			if cached == topM {
-				break
 			}
 		}
 	}

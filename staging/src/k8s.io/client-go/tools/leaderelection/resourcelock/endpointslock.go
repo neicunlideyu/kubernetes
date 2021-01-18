@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 )
@@ -67,7 +67,8 @@ func (el *EndpointsLock) Create(ctx context.Context, ler LeaderElectionRecord) e
 			Name:      el.EndpointsMeta.Name,
 			Namespace: el.EndpointsMeta.Namespace,
 			Annotations: map[string]string{
-				LeaderElectionRecordAnnotationKey: string(recordBytes),
+				LeaderElectionRecordAnnotationKey:    string(recordBytes),
+				RunningComponentsRecordAnnotationKey: el.LockConfig.Components,
 			},
 		},
 	}, metav1.CreateOptions{})
@@ -87,6 +88,7 @@ func (el *EndpointsLock) Update(ctx context.Context, ler LeaderElectionRecord) e
 		el.e.Annotations = make(map[string]string)
 	}
 	el.e.Annotations[LeaderElectionRecordAnnotationKey] = string(recordBytes)
+	el.e.Annotations[RunningComponentsRecordAnnotationKey] = el.LockConfig.Components
 	el.e, err = el.Client.Endpoints(el.EndpointsMeta.Namespace).Update(ctx, el.e, metav1.UpdateOptions{})
 	return err
 }

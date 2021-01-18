@@ -27,6 +27,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -242,6 +243,14 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		select {}
 	}
 
+	var controllerNames []string
+	for name := range NewControllerInitializers(ExternalLoops) {
+		if !genericcontrollermanager.IsControllerEnabled(name, ControllersDisabledByDefault, c.ComponentConfig.Generic.Controllers) {
+			continue
+		}
+		controllerNames = append(controllerNames, name)
+	}
+	components := strings.Join(controllerNames, ",")
 	if !c.ComponentConfig.Generic.LeaderElection.LeaderElect {
 		run(context.TODO())
 		panic("unreachable")
@@ -263,6 +272,7 @@ func Run(c *config.CompletedConfig, stopCh <-chan struct{}) error {
 		resourcelock.ResourceLockConfig{
 			Identity:      id,
 			EventRecorder: c.EventRecorder,
+			Components:    components,
 		})
 	if err != nil {
 		klog.Fatalf("error creating lock: %v", err)

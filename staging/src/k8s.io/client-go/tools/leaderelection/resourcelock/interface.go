@@ -27,12 +27,13 @@ import (
 )
 
 const (
-	LeaderElectionRecordAnnotationKey = "control-plane.alpha.kubernetes.io/leader"
-	EndpointsResourceLock             = "endpoints"
-	ConfigMapsResourceLock            = "configmaps"
-	LeasesResourceLock                = "leases"
-	EndpointsLeasesResourceLock       = "endpointsleases"
-	ConfigMapsLeasesResourceLock      = "configmapsleases"
+	LeaderElectionRecordAnnotationKey    = "control-plane.alpha.kubernetes.io/leader"
+	RunningComponentsRecordAnnotationKey = "control-plane.alpha.kubernetes.io/components"
+	EndpointsResourceLock                = "endpoints"
+	ConfigMapsResourceLock               = "configmaps"
+	LeasesResourceLock                   = "leases"
+	EndpointsLeasesResourceLock          = "endpointsleases"
+	ConfigMapsLeasesResourceLock         = "configmapsleases"
 )
 
 // LeaderElectionRecord is the record that is stored in the leader election annotation.
@@ -65,6 +66,8 @@ type ResourceLockConfig struct {
 	Identity string
 	// EventRecorder is optional.
 	EventRecorder EventRecorder
+	// Components record which components is enabled.
+	Components string
 }
 
 // Interface offers a common interface for locking on arbitrary

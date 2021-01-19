@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/api/core/v1"
+	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/kubernetes/pkg/features"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
-	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
 const NodePackageNBWMatch = "NodePackageNBWMatch"
@@ -41,7 +41,7 @@ var _ = framework.ScorePlugin(&MatchNodePackageNBW{})
 func NewNodePackageNBWMatcher(_ *runtime.Unknown, h framework.FrameworkHandle) (framework.Plugin, error) {
 	return &MatchNodePackageNBW{
 		handle:                    h,
-		refinedNodeResourceLister: h.RefinedNodeResourceInformer().Lister(),
+		refinedNodeResourceLister: h.BytedInformerFactory().Non().V1alpha1().RefinedNodeResources().Lister(),
 	}, nil
 }
 

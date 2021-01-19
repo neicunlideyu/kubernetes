@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
@@ -33,8 +34,6 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	schedulerlisters "k8s.io/kubernetes/pkg/scheduler/listers"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
-
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 // NodeScoreList declares a list of nodes and their scores.
@@ -525,5 +524,5 @@ type FrameworkHandle interface {
 	// VolumeBinder returns the volume binder used by scheduler.
 	VolumeBinder() scheduling.SchedulerVolumeBinder
 
-	RefinedNodeResourceInformer() nonnativeresourcev1alpha1.RefinedNodeResourceInformer
+	BytedInformerFactory() bytedinformers.SharedInformerFactory
 }

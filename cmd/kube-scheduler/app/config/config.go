@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	apiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -28,9 +29,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/record"
 	kubeschedulerconfig "k8s.io/kubernetes/pkg/scheduler/apis/config"
-
-	nonnativeresourceinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions"
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 // Config has all the context to run a Scheduler
@@ -61,8 +59,7 @@ type Config struct {
 	// LeaderElection is optional.
 	LeaderElection *leaderelection.LeaderElectionConfig
 
-	NonNativeResourceInformerFactory nonnativeresourceinformer.SharedInformerFactory
-	RefinedNodeResourceInformer      nonnativeresourcev1alpha1.RefinedNodeResourceInformer
+	BytedInformerFactory bytedinformers.SharedInformerFactory
 }
 
 type completedConfig struct {

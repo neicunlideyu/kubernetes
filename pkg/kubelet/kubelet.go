@@ -33,14 +33,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	nonnativeinformer "code.byted.org/kubernetes/clientsets/k8s/informers/non.native.resource/v1alpha1"
+	bytedclientsets "code.byted.org/kubernetes/clientsets/k8s/kubernetes"
 	kubetracing "code.byted.org/tce/kube-tracing"
-
 	cadvisorapi "github.com/google/cadvisor/info/v1"
-	utilexec "k8s.io/utils/exec"
-	"k8s.io/utils/integer"
-	"k8s.io/utils/mount"
-	utilnet "k8s.io/utils/net"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -128,8 +124,10 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util/hostutil"
 	"k8s.io/kubernetes/pkg/volume/util/subpath"
 	"k8s.io/kubernetes/pkg/volume/util/volumepathhandler"
-	nonnative "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
-	nonnativeinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
+	utilexec "k8s.io/utils/exec"
+	"k8s.io/utils/integer"
+	"k8s.io/utils/mount"
+	utilnet "k8s.io/utils/net"
 )
 
 const (
@@ -261,7 +259,7 @@ type Dependencies struct {
 	DockerClientConfig      *dockershim.ClientConfig
 	EventClient             v1core.EventsGetter
 	HeartbeatClient         clientset.Interface
-	RefinedResourceClient   nonnative.Interface
+	RefinedResourceClient   bytedclientsets.Interface
 	RefinedResourceInformer nonnativeinformer.RefinedNodeResourceInformer
 	OnHeartbeatFailure      func()
 	KubeClient              clientset.Interface
@@ -962,7 +960,7 @@ type Kubelet struct {
 
 	lastObservedNodeAddressesMux sync.RWMutex
 
-	refinedResourceClient   nonnative.Interface
+	refinedResourceClient   bytedclientsets.Interface
 	refinedResourceInformer nonnativeinformer.RefinedNodeResourceInformer
 
 	lastObservedNodeAddresses []v1.NodeAddress

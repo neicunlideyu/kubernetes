@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"time"
 
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
+	bytedclientsets "code.byted.org/kubernetes/clientsets/k8s/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -51,9 +53,6 @@ import (
 	kubeschedulerscheme "k8s.io/kubernetes/pkg/scheduler/apis/config/scheme"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config/validation"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/interpodaffinity"
-
-	nonnativeresourceclient "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
-	nonnativeresourceinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions"
 )
 
 // Options has all the params needed to run a Scheduler
@@ -258,7 +257,7 @@ func (o *Options) Config() (*schedulerappconfig.Config, error) {
 	}
 
 	// Prepare kube clients.
-	client, leaderElectionClient, nonNativeResourceClient, eventClient, err := createClients(c.ComponentConfig.ClientConnection, o.Master, c.ComponentConfig.LeaderElection.RenewDeadline.Duration)
+	client, leaderElectionClient, bytedClient, eventClient, err := createClients(c.ComponentConfig.ClientConnection, o.Master, c.ComponentConfig.LeaderElection.RenewDeadline.Duration)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +283,7 @@ func (o *Options) Config() (*schedulerappconfig.Config, error) {
 	c.CoreBroadcaster = coreBroadcaster
 	c.LeaderElection = leaderElectionConfig
 
-	c.NonNativeResourceInformerFactory = nonnativeresourceinformer.NewSharedInformerFactory(nonNativeResourceClient, 0)
-	c.RefinedNodeResourceInformer = c.NonNativeResourceInformerFactory.Non().V1alpha1().RefinedNodeResources()
+	c.BytedInformerFactory = bytedinformers.NewSharedInformerFactory(bytedClient, 0)
 
 	return c, nil
 }
@@ -325,7 +323,7 @@ func makeLeaderElectionConfig(config kubeschedulerconfig.KubeSchedulerLeaderElec
 
 // createClients creates a kube client and an event client from the given config and masterOverride.
 // TODO remove masterOverride when CLI flags are removed.
-func createClients(config componentbaseconfig.ClientConnectionConfiguration, masterOverride string, timeout time.Duration) (clientset.Interface, clientset.Interface, nonnativeresourceclient.Interface, clientset.Interface, error) {
+func createClients(config componentbaseconfig.ClientConnectionConfiguration, masterOverride string, timeout time.Duration) (clientset.Interface, clientset.Interface, bytedclientsets.Interface, clientset.Interface, error) {
 	if len(config.Kubeconfig) == 0 && len(masterOverride) == 0 {
 		klog.Warningf("Neither --kubeconfig nor --master was specified. Using default API client. This might not work.")
 	}
@@ -365,12 +363,12 @@ func createClients(config componentbaseconfig.ClientConnectionConfiguration, mas
 	}
 
 	// TODO: implement marshal protobuf interface for RefinedNodeResource , and use protobuf content type here then
-	nonNativeResourceConfig := *kubeConfig
-	nonNativeResourceConfig.ContentType = "application/json"
-	nonNativeResourceClient, err := nonnativeresourceclient.NewForConfig(restclient.AddUserAgent(&nonNativeResourceConfig, "non-native-resource-refined-node-resource"))
+	bytedRestConfig := *kubeConfig
+	bytedRestConfig.ContentType = "application/json"
+	bytedClient, err := bytedclientsets.NewForConfig(restclient.AddUserAgent(&bytedRestConfig, "bytedance-extended-api-client"))
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	return client, leaderElectionClient, nonNativeResourceClient, eventClient, nil
+	return client, leaderElectionClient, bytedClient, eventClient, nil
 }

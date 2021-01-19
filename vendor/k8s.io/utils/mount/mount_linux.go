@@ -19,10 +19,12 @@ limitations under the License.
 package mount
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -49,17 +51,20 @@ const (
 // for the linux platform.  This implementation assumes that the
 // kubelet is running in the host's root mount namespace.
 type Mounter struct {
-	mounterPath string
-	withSystemd bool
+	mounterPath      string
+	withSystemd      bool
+	withSystemdMount bool
 }
 
 // New returns a mount.Interface for the current system.
 // It provides options to override the default mounter behavior.
 // mounterPath allows using an alternative to `/bin/mount` for mounting.
 func New(mounterPath string) Interface {
+	runExists, mountExists := detectSystemd()
 	return &Mounter{
-		mounterPath: mounterPath,
-		withSystemd: detectSystemd(),
+		mounterPath:      mounterPath,
+		withSystemd:      runExists,
+		withSystemdMount: mountExists,
 	}
 }
 
@@ -83,6 +88,11 @@ func (mounter *Mounter) MountSensitive(source string, target string, fstype stri
 	mounterPath := ""
 	bind, bindOpts, bindRemountOpts, bindRemountOptsSensitive := MakeBindOptsSensitive(options, sensitiveOptions)
 	if bind {
+		if mounter.withSystemdMount {
+			// For systemd-mount, no need to do double mount for ro options
+			return mounter.doMount(mounterPath, defaultMountCommand, source, target, fstype, options, sensitiveOptions)
+		}
+
 		err := mounter.doMount(mounterPath, defaultMountCommand, source, target, fstype, bindOpts, bindRemountOptsSensitive)
 		if err != nil {
 			return err
@@ -112,7 +122,15 @@ func (mounter *Mounter) doMount(mounterPath string, mountCmd string, source stri
 		mountCmd = mounterPath
 	}
 
-	if mounter.withSystemd {
+	if mounter.withSystemd && mounterPath == "" {
+		// Kubelet use non-default mounter path in case of cfs/glusterfs/ceph
+		// .etc volumes needed; in case of corner cases, we only systemd-mount
+		// to handle default mount, e.g. secret volumes
+		klog.V(2).Infof("Using systemd-mount instead of systemd-run to do mount: %v", mountArgs)
+		descriptionArg := fmt.Sprintf("--description=Kubernetes mount for %s", target)
+		mountCmd = "systemd-mount"
+		mountArgs = append([]string{descriptionArg}, mountArgs...)
+	} else if mounter.withSystemd {
 		// Try to run mount via systemd-run --scope. This will escape the
 		// service where kubelet runs and any fuse daemons will be started in a
 		// specific scope. kubelet service than can be restarted without killing
@@ -135,6 +153,7 @@ func (mounter *Mounter) doMount(mounterPath string, mountCmd string, source stri
 		//
 		// systemd-mount is not used because it's too new for older distros
 		// (CentOS 7, Debian Jessie).
+		klog.V(2).Infof("Using systemd-run, fstype :%s, mounterPath: %s, args: %v", fstype, mounterPath, mountArgs)
 		mountCmd, mountArgs, mountArgsLogStr = AddSystemdScopeSensitive("systemd-run", target, mountCmd, mountArgs, mountArgsLogStr)
 	} else {
 		// No systemd-run on the host (or we failed to check it), assume kubelet
@@ -158,25 +177,56 @@ func (mounter *Mounter) doMount(mounterPath string, mountCmd string, source stri
 // (permission errors, ...), it returns false.
 // There may be different ways how to detect systemd, this one makes sure that
 // systemd-runs (needed by Mount()) works.
-func detectSystemd() bool {
+func detectSystemd() (bool, bool) {
+	var (
+		runExists   bool
+		mountExists bool
+		err         error
+	)
+
 	if _, err := exec.LookPath("systemd-run"); err != nil {
 		klog.V(2).Infof("Detected OS without systemd")
-		return false
+	} else {
+		runExists = true
 	}
+
+	if _, err = exec.LookPath("systemd-mount"); err != nil {
+		klog.V(2).Infof("Deleted OS without systemd-mount")
+	} else {
+		mountExists = true
+	}
+
 	// Try to run systemd-run --scope /bin/true, that should be enough
 	// to make sure that systemd is really running and not just installed,
 	// which happens when running in a container with a systemd-based image
 	// but with different pid 1.
+	var stderr bytes.Buffer
 	cmd := exec.Command("systemd-run", "--description=Kubernetes systemd probe", "--scope", "true")
-	output, err := cmd.CombinedOutput()
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
 	if err != nil {
 		klog.V(2).Infof("Cannot run systemd-run, assuming non-systemd OS")
 		klog.V(4).Infof("systemd-run failed with: %v", err)
-		klog.V(4).Infof("systemd-run output: %s", string(output))
-		return false
+		klog.V(4).Infof("systemd-run standard output: %s", string(output))
+		klog.V(4).Infof("systemd-run standard error: %s", string(stderr.Bytes()))
+		runExists = false
+	} else {
+		// For specific combination of kernel/systemd versions,
+		// transient scope won't be cleanned by systemd. To fix
+		// this, kubelet need to stop this unit explicitly.
+		klog.V(2).Infof("Try to remove transient systemd scope: %s", string(stderr.Bytes()))
+		re := regexp.MustCompile(`^Running scope as unit: ([a-z0-9\-]+.scope)$`)
+		mg := re.FindStringSubmatch(strings.TrimSpace(string(stderr.Bytes())))
+		if len(mg) == 2 {
+			klog.V(2).Infof("Extracted trasient scope unit: %s", mg[1])
+			cmd := exec.Command("systemctl", "stop", mg[1])
+			cmd.Run()
+		} else {
+			klog.V(2).Infof("systemd-run output is not as expected, match groups: %d", len(mg))
+		}
 	}
-	klog.V(2).Infof("Detected OS with systemd")
-	return true
+	klog.V(2).Infof("Detected OS with systemd: run=%v, mount=%v", runExists, mountExists)
+	return runExists, mountExists
 }
 
 // MakeMountArgs makes the arguments to the mount(8) command.

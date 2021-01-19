@@ -32,12 +32,11 @@ import (
 	"strings"
 	"time"
 
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
+	bytedclientsets "code.byted.org/kubernetes/clientsets/k8s/kubernetes"
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"k8s.io/klog"
-	"k8s.io/utils/mount"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,6 +65,7 @@ import (
 	"k8s.io/component-base/metrics"
 	"k8s.io/component-base/version"
 	"k8s.io/component-base/version/verflag"
+	"k8s.io/klog"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 	"k8s.io/kubernetes/cmd/kubelet/app/options"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
@@ -103,9 +103,8 @@ import (
 	"k8s.io/kubernetes/pkg/util/rlimit"
 	"k8s.io/kubernetes/pkg/volume/util/hostutil"
 	"k8s.io/kubernetes/pkg/volume/util/subpath"
-	nonnative "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
-	nonnativeinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions"
 	"k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 )
 
 const (
@@ -604,11 +603,11 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies, featureGate f
 		if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
 			refinedResourceClientConfig := *clientConfig
 			refinedResourceClientConfig.ContentType = "application/json"
-			kubeDeps.RefinedResourceClient, err = nonnative.NewForConfig(&refinedResourceClientConfig)
+			kubeDeps.RefinedResourceClient, err = bytedclientsets.NewForConfig(&refinedResourceClientConfig)
 			if err != nil {
 				return fmt.Errorf("fail to intialize refined resource client: %v", err)
 			}
-			refinedNodeResourceInformerFactory := nonnativeinformer.NewFilteredSharedInformerFactory(kubeDeps.RefinedResourceClient, 0, "",
+			refinedNodeResourceInformerFactory := bytedinformers.NewFilteredSharedInformerFactory(kubeDeps.RefinedResourceClient, 0, "",
 				func(options *metav1.ListOptions) {
 					options.FieldSelector = fmt.Sprintf("metadata.name=%s", nodeName)
 				})

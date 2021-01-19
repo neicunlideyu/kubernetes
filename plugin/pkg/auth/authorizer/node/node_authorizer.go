@@ -20,13 +20,13 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/klog"
-
+	refinednodeapi "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/component-base/featuregate"
+	"k8s.io/klog"
 	coordapi "k8s.io/kubernetes/pkg/apis/coordination"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	storageapi "k8s.io/kubernetes/pkg/apis/storage"
@@ -35,8 +35,6 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
 	"k8s.io/kubernetes/third_party/forked/gonum/graph"
 	"k8s.io/kubernetes/third_party/forked/gonum/graph/traverse"
-
-	refinednodeapi "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
 )
 
 // NodeAuthorizer authorizes requests from kubelets, with the following logic:

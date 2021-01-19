@@ -29,9 +29,12 @@ import (
 	"strings"
 	"time"
 
+	nonnativeresource "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
+	nonnativeresourceinformer "code.byted.org/kubernetes/clientsets/k8s/informers/non.native.resource/v1alpha1"
+	bytedclientsets "code.byted.org/kubernetes/clientsets/k8s/kubernetes"
 	cadvisorapiv1 "github.com/google/cadvisor/info/v1"
-
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,6 +44,7 @@ import (
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	cloudprovider "k8s.io/cloud-provider"
 	"k8s.io/component-base/version"
+	"k8s.io/klog"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
@@ -50,12 +54,6 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/volume"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog"
-	nonnativeresource "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
-	nonnativeresourceclient "k8s.io/non-native-resource-api/pkg/client/clientset/versioned"
-	nonnativeresourceinformer "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -419,7 +417,7 @@ func formatDiscreteResourceProperties(propertiesArr ...[]nonnativeresource.Discr
 }
 
 // Collect refined resource and create crd
-func RefinedResourceInfo(refinedResourceClient nonnativeresourceclient.Interface, refinedResourceInformer nonnativeresourceinformer.RefinedNodeResourceInformer, devicePluginHeterogenousResourceFunc func() devicemanager.DevicePluginHeterogenousResource) Setter {
+func RefinedResourceInfo(refinedResourceClient bytedclientsets.Interface, refinedResourceInformer nonnativeresourceinformer.RefinedNodeResourceInformer, devicePluginHeterogenousResourceFunc func() devicemanager.DevicePluginHeterogenousResource) Setter {
 	var Seperator = ";"
 	return func(node *v1.Node) error {
 		if refinedResourceClient == nil {

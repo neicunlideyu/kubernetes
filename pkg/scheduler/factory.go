@@ -23,6 +23,7 @@ import (
 	"sort"
 	"time"
 
+	bytedinfomers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	"github.com/google/go-cmp/cmp"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -60,8 +61,6 @@ import (
 	internalqueue "k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
 	"k8s.io/kubernetes/pkg/scheduler/util"
-
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -79,9 +78,9 @@ type Binder interface {
 type Configurator struct {
 	client clientset.Interface
 
-	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer
-
 	recorderFactory profile.RecorderFactory
+
+	bytedinformerFactory bytedinfomers.SharedInformerFactory
 
 	informerFactory informers.SharedInformerFactory
 
@@ -130,7 +129,7 @@ func (c *Configurator) buildFramework(p schedulerapi.KubeSchedulerProfile) (fram
 		framework.WithSnapshotSharedLister(c.nodeInfoSnapshot),
 		framework.WithRunAllFilters(c.alwaysCheckAllPredicates),
 		framework.WithVolumeBinder(c.volumeBinder),
-		framework.WithNonNativeResourceListers(c.refinedNodeResourceInformer),
+		framework.WithBytedInFormerFactory(c.bytedinformerFactory),
 	)
 }
 
@@ -204,7 +203,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 
 	algo := core.NewGenericScheduler(
 		c.schedulerCache,
-		c.refinedNodeResourceInformer,
+		c.bytedinformerFactory.Non().V1alpha1().RefinedNodeResources(),
 		podQueue,
 		c.nodeInfoSnapshot,
 		extenders,

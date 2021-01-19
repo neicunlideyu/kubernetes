@@ -22,6 +22,7 @@ import (
 	"io"
 	"strings"
 
+	refinednodeapi "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,8 +45,6 @@ import (
 	"k8s.io/kubernetes/pkg/auth/nodeidentifier"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
-
-	refinednodeapi "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
 )
 
 // PluginName is a string with the name of the plugin

@@ -142,5 +142,6 @@ vendordiff.patch
 third_party/kube-tracing/
 vendor/github.com/uber/
 vendor/github.com/opentracing/
-vendor/code.byted.org/
+vendor/code.byted.org/*
+!vendor/code.byted.org/kubernetes
 vendor/google.golang.org/

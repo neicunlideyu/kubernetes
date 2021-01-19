@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"k8s.io/klog"
-
+	nnrv1alpha1 "code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1"
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,13 +30,11 @@ import (
 	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
-
-	nnrv1alpha1 "k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1"
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 func (sched *Scheduler) onPvAdd(obj interface{}) {
@@ -374,7 +372,7 @@ func addAllEventHandlers(
 	sched *Scheduler,
 	informerFactory informers.SharedInformerFactory,
 	podInformer coreinformers.PodInformer,
-	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer,
+	bytedinformerFactory bytedinformers.SharedInformerFactory,
 ) {
 	// scheduled pod cache
 	podInformer.Informer().AddEventHandler(
@@ -481,7 +479,7 @@ func addAllEventHandlers(
 	)
 
 	if utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
-		refinedNodeResourceInformer.Informer().AddEventHandler(
+		bytedinformerFactory.Non().V1alpha1().RefinedNodeResources().Informer().AddEventHandler(
 			cache.ResourceEventHandlerFuncs{
 				AddFunc:    sched.onRefinedNodeResourceAdd,
 				UpdateFunc: sched.onRefinedNodeResourceUpdate,

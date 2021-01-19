@@ -55,8 +55,18 @@ function ensure_require_replace_directives_for_all_dependencies() {
   local local_tmp_dir
   local_tmp_dir=$(mktemp -d "${TMP_DIR}/pin_replace.XXXX")
 
+  # modified by bytedance
+  # @zoumo
+  local local_stating_repos=()
+  for repo in $(kube::util::list_staging_repos); do
+    local_stating_repos+=("\"k8s.io/${repo}\"")
+  done
+  local not_staging_filter='(['$(kube::util::join , "${local_stating_repos[@]}")'] as $staging | .Path | IN($staging[]) | not)'
+  # end
+
   # collect 'require' directives that actually specify a version
-  local require_filter='(.Version != null) and (.Version != "v0.0.0") and (.Version != "v0.0.0-00010101000000-000000000000")'
+  # @zoumo: require filter should ignore staging requires
+  local require_filter='(.Version != null) and (.Version != "v0.0.0") and (.Version != "v0.0.0-00010101000000-000000000000") and '${not_staging_filter}
   # collect 'replace' directives that unconditionally pin versions (old=new@version)
   local replace_filter='(.Old.Version == null) and (.New.Version != null)'
 

@@ -24,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,8 +51,6 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
 	"k8s.io/kubernetes/pkg/scheduler/util"
-
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -245,7 +244,7 @@ var defaultSchedulerOptions = schedulerOptions{
 // New returns a Scheduler
 func New(client clientset.Interface,
 	informerFactory informers.SharedInformerFactory,
-	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer,
+	bytedinformerFactory bytedinformers.SharedInformerFactory,
 	podInformer coreinformers.PodInformer,
 	recorderFactory profile.RecorderFactory,
 	stopCh <-chan struct{},
@@ -281,7 +280,7 @@ func New(client clientset.Interface,
 
 	configurator := &Configurator{
 		client:                         client,
-		refinedNodeResourceInformer:    refinedNodeResourceInformer,
+		bytedinformerFactory:           bytedinformerFactory,
 		recorderFactory:                recorderFactory,
 		informerFactory:                informerFactory,
 		podInformer:                    podInformer,
@@ -345,7 +344,7 @@ func New(client clientset.Interface,
 	sched.podPreemptor = &podPreemptorImpl{client}
 	sched.scheduledPodsHasSynced = podInformer.Informer().HasSynced
 
-	addAllEventHandlers(sched, informerFactory, podInformer, refinedNodeResourceInformer)
+	addAllEventHandlers(sched, informerFactory, podInformer, bytedinformerFactory)
 	return sched, nil
 }
 

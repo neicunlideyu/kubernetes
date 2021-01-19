@@ -27,8 +27,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"k8s.io/klog"
-
+	nonnativeresourcev1alpha1 "code.byted.org/kubernetes/clientsets/k8s/informers/non.native.resource/v1alpha1"
+	nonnativeresourcelisters "code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +39,7 @@ import (
 	policylisters "k8s.io/client-go/listers/policy/v1beta1"
 	schedulingv1listers "k8s.io/client-go/listers/scheduling/v1"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/features"
@@ -51,9 +52,6 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/profile"
 	"k8s.io/kubernetes/pkg/scheduler/util"
 	utiltrace "k8s.io/utils/trace"
-
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
-	nonnativeresourcelisters "k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1"
 )
 
 const (

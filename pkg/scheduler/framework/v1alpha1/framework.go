@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"time"
 
+	bytedinformers "code.byted.org/kubernetes/clientsets/k8s/informers"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,8 +37,6 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/metrics"
 	schedulernodeinfo "k8s.io/kubernetes/pkg/scheduler/nodeinfo"
 	schedutil "k8s.io/kubernetes/pkg/scheduler/util"
-
-	nonnativeresourcev1alpha1 "k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1"
 )
 
 const (
@@ -62,26 +61,26 @@ const (
 // framework is the component responsible for initializing and running scheduler
 // plugins.
 type framework struct {
-	registry                    Registry
-	snapshotSharedLister        schedulerlisters.SharedLister
-	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer
-	waitingPods                 *waitingPodsMap
-	pluginNameToWeightMap       map[string]int
-	queueSortPlugins            []QueueSortPlugin
-	preFilterPlugins            []PreFilterPlugin
-	filterPlugins               []FilterPlugin
-	preScorePlugins             []PreScorePlugin
-	scorePlugins                []ScorePlugin
-	reservePlugins              []ReservePlugin
-	preBindPlugins              []PreBindPlugin
-	bindPlugins                 []BindPlugin
-	postBindPlugins             []PostBindPlugin
-	unreservePlugins            []UnreservePlugin
-	permitPlugins               []PermitPlugin
+	registry              Registry
+	snapshotSharedLister  schedulerlisters.SharedLister
+	waitingPods           *waitingPodsMap
+	pluginNameToWeightMap map[string]int
+	queueSortPlugins      []QueueSortPlugin
+	preFilterPlugins      []PreFilterPlugin
+	filterPlugins         []FilterPlugin
+	preScorePlugins       []PreScorePlugin
+	scorePlugins          []ScorePlugin
+	reservePlugins        []ReservePlugin
+	preBindPlugins        []PreBindPlugin
+	bindPlugins           []BindPlugin
+	postBindPlugins       []PostBindPlugin
+	unreservePlugins      []UnreservePlugin
+	permitPlugins         []PermitPlugin
 
-	clientSet       clientset.Interface
-	informerFactory informers.SharedInformerFactory
-	volumeBinder    scheduling.SchedulerVolumeBinder
+	clientSet            clientset.Interface
+	informerFactory      informers.SharedInformerFactory
+	bytedinformerFactory bytedinformers.SharedInformerFactory
+	volumeBinder         scheduling.SchedulerVolumeBinder
 
 	metricsRecorder *metricsRecorder
 
@@ -118,13 +117,13 @@ func (f *framework) getExtensionPoints(plugins *config.Plugins) []extensionPoint
 }
 
 type frameworkOptions struct {
-	clientSet                   clientset.Interface
-	informerFactory             informers.SharedInformerFactory
-	snapshotSharedLister        schedulerlisters.SharedLister
-	metricsRecorder             *metricsRecorder
-	volumeBinder                scheduling.SchedulerVolumeBinder
-	refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer
-	runAllFilters               bool
+	clientSet            clientset.Interface
+	informerFactory      informers.SharedInformerFactory
+	bytedinformerFactory bytedinformers.SharedInformerFactory
+	snapshotSharedLister schedulerlisters.SharedLister
+	metricsRecorder      *metricsRecorder
+	volumeBinder         scheduling.SchedulerVolumeBinder
+	runAllFilters        bool
 }
 
 // Option for the framework.
@@ -173,10 +172,10 @@ func WithVolumeBinder(binder scheduling.SchedulerVolumeBinder) Option {
 	}
 }
 
-// WithNonNativeResourceListers sets NonNativeResource listers for the scheduling framework.
-func WithNonNativeResourceListers(refinedNodeResourceInformer nonnativeresourcev1alpha1.RefinedNodeResourceInformer) Option {
+// WithBytedInFormerFactory sets byted informer factory for the scheduling framework.
+func WithBytedInFormerFactory(bytedinformerFactory bytedinformers.SharedInformerFactory) Option {
 	return func(o *frameworkOptions) {
-		o.refinedNodeResourceInformer = refinedNodeResourceInformer
+		o.bytedinformerFactory = bytedinformerFactory
 	}
 }
 
@@ -194,16 +193,16 @@ func NewFramework(r Registry, plugins *config.Plugins, args []config.PluginConfi
 	}
 
 	f := &framework{
-		registry:                    r,
-		snapshotSharedLister:        options.snapshotSharedLister,
-		refinedNodeResourceInformer: options.refinedNodeResourceInformer,
-		pluginNameToWeightMap:       make(map[string]int),
-		waitingPods:                 newWaitingPodsMap(),
-		clientSet:                   options.clientSet,
-		informerFactory:             options.informerFactory,
-		volumeBinder:                options.volumeBinder,
-		metricsRecorder:             options.metricsRecorder,
-		runAllFilters:               options.runAllFilters,
+		registry:              r,
+		snapshotSharedLister:  options.snapshotSharedLister,
+		pluginNameToWeightMap: make(map[string]int),
+		waitingPods:           newWaitingPodsMap(),
+		clientSet:             options.clientSet,
+		informerFactory:       options.informerFactory,
+		bytedinformerFactory:  options.bytedinformerFactory,
+		volumeBinder:          options.volumeBinder,
+		metricsRecorder:       options.metricsRecorder,
+		runAllFilters:         options.runAllFilters,
 	}
 	if plugins == nil {
 		return f, nil
@@ -908,8 +907,8 @@ func (f *framework) VolumeBinder() scheduling.SchedulerVolumeBinder {
 	return f.volumeBinder
 }
 
-func (f *framework) RefinedNodeResourceInformer() nonnativeresourcev1alpha1.RefinedNodeResourceInformer {
-	return f.refinedNodeResourceInformer
+func (f *framework) BytedInformerFactory() bytedinformers.SharedInformerFactory {
+	return f.bytedinformerFactory
 }
 
 func (f *framework) pluginsNeeded(plugins *config.Plugins) map[string]config.Plugin {

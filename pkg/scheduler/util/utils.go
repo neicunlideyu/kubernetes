@@ -266,8 +266,6 @@ func getPodRequest(pod *v1.Pod, resourceType v1.ResourceName, format resource.Fo
 	return result
 }
 
-const PreemptionScopeKey = "PreemptionScopeKey"
-
 const deployNameKeyInPodLabels = "name"
 
 // TODO: if we support multiple controller kinds later, we need to get the controller name from reference owners

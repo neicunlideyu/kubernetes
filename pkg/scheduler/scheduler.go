@@ -488,25 +488,25 @@ func podHasLeastPriority(pod *v1.Pod) bool {
 // If it succeeds, it adds the name of the node where preemption has happened to the pod spec.
 // It returns the node name and an error if any.
 func (sched *Scheduler) preempt(ctx context.Context, prof *profile.Profile, state *framework.CycleState, preemptor *v1.Pod, scheduleErr error) (string, error) {
-	preemptor, err := sched.podPreemptor.getUpdatedPod(preemptor)
-
 	if podHasLeastPriority(preemptor) {
 		klog.V(3).Infof("Pod has least priority or priority is not set")
 		return "", nil
 	}
 
+	preemptor, err := sched.podPreemptor.getUpdatedPod(preemptor)
 	if err != nil {
 		klog.Errorf("Error getting the updated preemptor pod object: %v", err)
 		return "", err
 	}
 
-	node, victims, nominatedPodsToClear, err := sched.Algorithm.Preempt(ctx, prof, state, preemptor, scheduleErr)
 	// TODO: revisit this to see if it is ok to return directly here
 	// we will never remove NominatedNodeName in pod status if it is not cached
 	if len(preemptor.Status.NominatedNodeName) > 0 || len(preemptor.Spec.NodeName) > 0 {
 		// if the nominated node is set, return directly
 		return "", nil
 	}
+
+	node, victims, nominatedPodsToClear, err := sched.Algorithm.Preempt(ctx, prof, state, preemptor, scheduleErr)
 
 	if err != nil {
 		klog.Errorf("Error preempting victims to make room for %v/%v: %v", preemptor.Namespace, preemptor.Name, err)

@@ -426,9 +426,12 @@ func (g *genericScheduler) selectHost(pod *v1.Pod, nodeScoreList framework.NodeS
 		topM := 20
 		for _, nodeScore := range nodeScoreList {
 			if nodeScore.Score == maxScore && nodeScore.Name != selected {
-				cached++
-				if cached <= topM {
+				if cached < topM {
 					g.cache.CacheNodesForDP(dpName, nodeScore.Name)
+					cached++
+				}
+				if cached >= topM {
+					break
 				}
 			}
 		}

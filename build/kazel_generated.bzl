@@ -107,9 +107,10 @@ tags_values_pkgs = {"openapi-gen": {
         "staging/src/k8s.io/metrics/pkg/apis/external_metrics/v1beta1",
         "staging/src/k8s.io/metrics/pkg/apis/metrics/v1alpha1",
         "staging/src/k8s.io/metrics/pkg/apis/metrics/v1beta1",
-        "staging/src/k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1",
         "staging/src/k8s.io/sample-apiserver/pkg/apis/wardle/v1alpha1",
         "staging/src/k8s.io/sample-apiserver/pkg/apis/wardle/v1beta1",
+        "vendor/code.byted.org/kubernetes/apis/k8s/csi/v1alpha1",
+        "vendor/code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1",
     ],
 }}
 
@@ -195,7 +196,8 @@ tags_pkgs_values = {"openapi-gen": {
     "staging/src/k8s.io/metrics/pkg/apis/external_metrics/v1beta1": ["true"],
     "staging/src/k8s.io/metrics/pkg/apis/metrics/v1alpha1": ["true"],
     "staging/src/k8s.io/metrics/pkg/apis/metrics/v1beta1": ["true"],
-    "staging/src/k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1": ["true"],
     "staging/src/k8s.io/sample-apiserver/pkg/apis/wardle/v1alpha1": ["true"],
     "staging/src/k8s.io/sample-apiserver/pkg/apis/wardle/v1beta1": ["true"],
+    "vendor/code.byted.org/kubernetes/apis/k8s/csi/v1alpha1": ["true"],
+    "vendor/code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1": ["true"],
 }}

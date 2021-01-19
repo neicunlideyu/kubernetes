@@ -32,7 +32,7 @@ go_library(
         "//staging/src/k8s.io/client-go/informers:go_default_library",
         "//staging/src/k8s.io/client-go/listers/core/v1:go_default_library",
         "//staging/src/k8s.io/component-base/featuregate:go_default_library",
-        "//staging/src/k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1:go_default_library",
+        "//vendor/code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1:go_default_library",
         "//vendor/k8s.io/klog:go_default_library",
     ],
 )

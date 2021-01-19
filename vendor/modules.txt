@@ -2,7 +2,23 @@
 bitbucket.org/bertimus9/systemstat
 # cloud.google.com/go v0.38.0 => cloud.google.com/go v0.38.0
 cloud.google.com/go/compute/metadata
-# code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e
+# code.byted.org/kubernetes/apis v0.1.1 => code.byted.org/kubernetes/apis v0.1.1
+code.byted.org/kubernetes/apis/k8s/csi/v1alpha1
+code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1
+# code.byted.org/kubernetes/clientsets v0.1.1 => code.byted.org/kubernetes/clientsets v0.1.1
+code.byted.org/kubernetes/clientsets/k8s/informers
+code.byted.org/kubernetes/clientsets/k8s/informers/csi
+code.byted.org/kubernetes/clientsets/k8s/informers/csi/v1alpha1
+code.byted.org/kubernetes/clientsets/k8s/informers/internalinterfaces
+code.byted.org/kubernetes/clientsets/k8s/informers/non.native.resource
+code.byted.org/kubernetes/clientsets/k8s/informers/non.native.resource/v1alpha1
+code.byted.org/kubernetes/clientsets/k8s/kubernetes
+code.byted.org/kubernetes/clientsets/k8s/kubernetes/scheme
+code.byted.org/kubernetes/clientsets/k8s/kubernetes/typed/csi/v1alpha1
+code.byted.org/kubernetes/clientsets/k8s/kubernetes/typed/non.native.resource/v1alpha1
+code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
+code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
+# code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e => code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e
 code.byted.org/tce/kube-tracing
 # github.com/Azure/azure-sdk-for-go v35.0.0+incompatible => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute
@@ -16,9 +32,9 @@ github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
 # github.com/Azure/go-autorest/autorest v0.9.0 => github.com/Azure/go-autorest/autorest v0.9.0
 github.com/Azure/go-autorest/autorest
-github.com/Azure/go-autorest/autorest/azure
 # github.com/Azure/go-autorest/autorest/adal v0.5.0 => github.com/Azure/go-autorest/autorest/adal v0.5.0
 github.com/Azure/go-autorest/autorest/adal
+github.com/Azure/go-autorest/autorest/azure
 # github.com/Azure/go-autorest/autorest/date v0.1.0 => github.com/Azure/go-autorest/autorest/date v0.1.0
 github.com/Azure/go-autorest/autorest/date
 # github.com/Azure/go-autorest/autorest/mocks v0.2.0 => github.com/Azure/go-autorest/autorest/mocks v0.2.0
@@ -353,7 +369,7 @@ github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
 # github.com/google/btree v1.0.0 => github.com/google/btree v1.0.0
 github.com/google/btree
-# github.com/google/cadvisor v0.35.0 => code.byted.org/tce/cadvisor v0.0.0-20201220050623-48be6ea97b8c
+# github.com/google/cadvisor v0.0.0-20201220050623-48be6ea97b8c => code.byted.org/tce/cadvisor v0.0.0-20201220050623-48be6ea97b8c
 github.com/google/cadvisor/accelerators
 github.com/google/cadvisor/cache/memory
 github.com/google/cadvisor/client/v2
@@ -394,7 +410,7 @@ github.com/google/cadvisor/utils/sysinfo
 github.com/google/cadvisor/version
 github.com/google/cadvisor/watcher
 github.com/google/cadvisor/zfs
-# github.com/google/go-cmp v0.3.0 => github.com/google/go-cmp v0.3.0
+# github.com/google/go-cmp v0.5.2 => github.com/google/go-cmp v0.3.0
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/cmpopts
 github.com/google/go-cmp/cmp/internal/diff
@@ -617,7 +633,7 @@ github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52 => github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
-# github.com/opentracing/opentracing-go v0.0.0-00010101000000-000000000000 => code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing
+# github.com/opentracing/opentracing-go v1.1.0-tce-kube-tracing => code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
@@ -683,7 +699,7 @@ github.com/storageos/go-api/serror
 github.com/storageos/go-api/types
 # github.com/stretchr/objx v0.2.0 => github.com/stretchr/objx v0.2.0
 github.com/stretchr/objx
-# github.com/stretchr/testify v1.4.0 => github.com/stretchr/testify v1.4.0
+# github.com/stretchr/testify v1.6.1 => github.com/stretchr/testify v1.4.0
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
@@ -694,7 +710,7 @@ github.com/thecodeteam/goscaleio
 github.com/thecodeteam/goscaleio/types/v1
 # github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8 => github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8
 github.com/tmc/grpc-websocket-proxy/wsproxy
-# github.com/uber/jaeger-client-go v0.0.0-00010101000000-000000000000 => code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
+# github.com/uber/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible => code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
 github.com/uber/jaeger-client-go
 github.com/uber/jaeger-client-go/config
 github.com/uber/jaeger-client-go/internal/baggage
@@ -712,7 +728,7 @@ github.com/uber/jaeger-client-go/thrift-gen/sampling
 github.com/uber/jaeger-client-go/thrift-gen/zipkincore
 github.com/uber/jaeger-client-go/transport
 github.com/uber/jaeger-client-go/utils
-# github.com/uber/jaeger-lib v2.4.0+incompatible
+# github.com/uber/jaeger-lib v2.4.0+incompatible => github.com/uber/jaeger-lib v2.4.0+incompatible
 github.com/uber/jaeger-lib/metrics
 # github.com/vishvananda/netlink v1.0.0 => github.com/vishvananda/netlink v1.0.0
 github.com/vishvananda/netlink
@@ -1137,7 +1153,7 @@ honnef.co/go/tools/staticcheck/vrp
 honnef.co/go/tools/stylecheck
 honnef.co/go/tools/unused
 honnef.co/go/tools/version
-# k8s.io/api v0.0.0 => ./staging/src/k8s.io/api
+# k8s.io/api v0.18.10 => ./staging/src/k8s.io/api
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
 k8s.io/api/admissionregistration/v1
@@ -1224,7 +1240,7 @@ k8s.io/apiextensions-apiserver/pkg/registry/customresource/tableconvertor
 k8s.io/apiextensions-apiserver/pkg/registry/customresourcedefinition
 k8s.io/apiextensions-apiserver/test/integration
 k8s.io/apiextensions-apiserver/test/integration/fixtures
-# k8s.io/apimachinery v0.0.0 => ./staging/src/k8s.io/apimachinery
+# k8s.io/apimachinery v0.18.10 => ./staging/src/k8s.io/apimachinery
 k8s.io/apimachinery/pkg/api/apitesting
 k8s.io/apimachinery/pkg/api/apitesting/fuzzer
 k8s.io/apimachinery/pkg/api/apitesting/naming
@@ -1444,7 +1460,7 @@ k8s.io/cli-runtime/pkg/kustomize/k8sdeps/transformer/patch
 k8s.io/cli-runtime/pkg/kustomize/k8sdeps/validator
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.0.0 => ./staging/src/k8s.io/client-go
+# k8s.io/client-go v0.18.10 => ./staging/src/k8s.io/client-go
 k8s.io/client-go/discovery
 k8s.io/client-go/discovery/cached
 k8s.io/client-go/discovery/cached/disk
@@ -1703,7 +1719,7 @@ k8s.io/cluster-bootstrap/token/jws
 k8s.io/cluster-bootstrap/token/util
 k8s.io/cluster-bootstrap/util/secrets
 k8s.io/cluster-bootstrap/util/tokens
-# k8s.io/code-generator v0.0.0 => ./staging/src/k8s.io/code-generator
+# k8s.io/code-generator v0.18.16-rc.0 => ./staging/src/k8s.io/code-generator
 k8s.io/code-generator/cmd/go-to-protobuf
 k8s.io/code-generator/cmd/go-to-protobuf/protobuf
 k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
@@ -1941,16 +1957,6 @@ k8s.io/metrics/pkg/client/custom_metrics/fake
 k8s.io/metrics/pkg/client/custom_metrics/scheme
 k8s.io/metrics/pkg/client/external_metrics
 k8s.io/metrics/pkg/client/external_metrics/fake
-# k8s.io/non-native-resource-api v0.0.0-00010101000000-000000000000 => ./staging/src/k8s.io/non-native-resource-api
-k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1
-k8s.io/non-native-resource-api/pkg/client/clientset/versioned
-k8s.io/non-native-resource-api/pkg/client/clientset/versioned/scheme
-k8s.io/non-native-resource-api/pkg/client/clientset/versioned/typed/non.native.resource/v1alpha1
-k8s.io/non-native-resource-api/pkg/client/informers/externalversions
-k8s.io/non-native-resource-api/pkg/client/informers/externalversions/internalinterfaces
-k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource
-k8s.io/non-native-resource-api/pkg/client/informers/externalversions/non.native.resource/v1alpha1
-k8s.io/non-native-resource-api/pkg/client/listers/non.native.resource/v1alpha1
 # k8s.io/repo-infra v0.0.1-alpha.1 => k8s.io/repo-infra v0.0.1-alpha.1
 k8s.io/repo-infra/cmd/kazel
 # k8s.io/sample-apiserver v0.0.0 => ./staging/src/k8s.io/sample-apiserver
@@ -1980,7 +1986,7 @@ k8s.io/sample-apiserver/pkg/registry/wardle/fischer
 k8s.io/sample-apiserver/pkg/registry/wardle/flunder
 # k8s.io/system-validators v1.0.4 => k8s.io/system-validators v1.0.4
 k8s.io/system-validators/validators
-# k8s.io/utils v0.0.0-20201110183641-67b214c5f920 => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+# k8s.io/utils v0.0.0-20201125131702-a289a73e4c95 => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
 k8s.io/utils/buffer
 k8s.io/utils/clock
 k8s.io/utils/exec

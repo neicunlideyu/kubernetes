@@ -12,8 +12,6 @@ go_library(
     importpath = "k8s.io/kubectl/pkg/drain",
     visibility = ["//visibility:public"],
     deps = [
-        # Please be wary of additional deps here ... this is intended to be usable as a library
-        "//pkg/controller/deployment/util:go_default_library",
         "//staging/src/k8s.io/api/apps/v1:go_default_library",
         "//staging/src/k8s.io/api/core/v1:go_default_library",
         "//staging/src/k8s.io/api/policy/v1beta1:go_default_library",
@@ -31,6 +29,7 @@ go_library(
         "//staging/src/k8s.io/cli-runtime/pkg/resource:go_default_library",
         "//staging/src/k8s.io/client-go/kubernetes:go_default_library",
         "//staging/src/k8s.io/kubectl/pkg/cmd/util:go_default_library",
+        "//staging/src/k8s.io/kubectl/pkg/util/deployment:go_default_library",
     ],
 )
 

@@ -505,17 +505,6 @@ API rule violation: list_type_missing,k8s.io/metrics/pkg/apis/metrics/v1alpha1,P
 API rule violation: list_type_missing,k8s.io/metrics/pkg/apis/metrics/v1beta1,NodeMetricsList,Items
 API rule violation: list_type_missing,k8s.io/metrics/pkg/apis/metrics/v1beta1,PodMetrics,Containers
 API rule violation: list_type_missing,k8s.io/metrics/pkg/apis/metrics/v1beta1,PodMetricsList,Items
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourceProperties,CPUProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourceProperties,DiskProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourceProperties,GPUProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourceProperties,MemoryProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourceProperties,NetworkProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourceProperties,OtherProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,DiscreteResourcePropertyPattern,PropertyValues
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,NumaTopologyStatus,Sockets
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,NumericResourceProperties,NumericProperties
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,RefinedNodeResourceList,Items
-API rule violation: list_type_missing,k8s.io/non-native-resource-api/pkg/apis/non.native.resource/v1alpha1,SocketStatus,Numas
 API rule violation: names_match,k8s.io/api/authorization/v1beta1,SubjectAccessReviewSpec,Groups
 API rule violation: names_match,k8s.io/api/core/v1,AzureDiskVolumeSource,DataDiskURI
 API rule violation: names_match,k8s.io/api/core/v1,ContainerStatus,LastTerminationState

@@ -663,16 +663,16 @@ func (m *kubeGenericRuntimeManager) killContainer(traceCtx interface{}, pod *v1.
 	}
 	if gracePeriodOverride != nil {
 		gracePeriod = *gracePeriodOverride
-		klog.V(3).Infof("Killing container %q, but using %d second grace period override", containerID, gracePeriod)
+		klog.V(3).Infof("Killing container %q in pod %s, but using %d second grace period override", containerID, format.Pod(pod), gracePeriod)
 	}
 
-	klog.V(2).Infof("Killing container %q with %d second grace period", containerID.String(), gracePeriod)
+	klog.V(2).Infof("Killing container %q in pod %s with %d second grace period", containerID.String(), format.Pod(pod), gracePeriod)
 
 	err := m.runtimeService.StopContainer(containerID.ID, gracePeriod)
 	if err != nil {
-		klog.Errorf("Container %q termination failed with gracePeriod %d: %v", containerID.String(), gracePeriod, err)
+		klog.Errorf("Container %q in pod %s termination failed with gracePeriod %d: %v", containerID.String(), format.Pod(pod), gracePeriod, err)
 	} else {
-		klog.V(3).Infof("Container %q exited normally", containerID.String())
+		klog.V(3).Infof("Container %q in pod %s exited normally", containerID.String(), format.Pod(pod))
 	}
 
 	m.containerRefManager.ClearRef(containerID)

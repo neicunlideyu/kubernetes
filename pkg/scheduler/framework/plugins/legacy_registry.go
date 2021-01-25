@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/csistoragepool"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/imagelocality"
@@ -153,6 +154,8 @@ const (
 	EvenPodsSpreadPred = "EvenPodsSpread"
 
 	MatchHostUniquePred = "MatchHostUnique"
+	// PodFitsStoragePoolPred defines the name of predicate PodFitsStoragePool
+	PodFitsStoragePoolPred = "PodFitsStoragePool"
 
 	ShareGPUPred = "ShareGPU"
 	// NodeMatchesPackagePred defines the name of predicate NodeMatchesPackage
@@ -166,7 +169,7 @@ func PredicateOrdering() []string {
 		MatchNodeSelectorPred, PodFitsResourcesPred, ShareGPUPred, NoDiskConflictPred,
 		PodToleratesNodeTaintsPred, CheckNodeLabelPresencePred,
 		CheckServiceAffinityPred, MaxEBSVolumeCountPred, MaxGCEPDVolumeCountPred, MaxCSIVolumeCountPred,
-		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, NoVolumeZoneConflictPred,
+		MaxAzureDiskVolumeCountPred, MaxCinderVolumeCountPred, CheckVolumeBindingPred, PodFitsStoragePoolPred, NoVolumeZoneConflictPred,
 		EvenPodsSpreadPred, MatchHostUniquePred, MatchInterPodAffinityPred}
 }
 
@@ -232,6 +235,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			CheckNodeUnschedulablePred,
 			MatchHostUniquePred,
 			ShareGPUPred,
+			PodFitsStoragePoolPred,
 		),
 
 		// Used as the default set of predicates if Policy was specified, but priorities was nil.
@@ -367,6 +371,11 @@ func NewLegacyRegistry() *LegacyRegistry {
 	registry.registerPredicateConfigProducer(MatchHostUniquePred,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Filter = appendToPluginSet(plugins.Filter, hostunique.Name, nil)
+			return
+		})
+	registry.registerPredicateConfigProducer(PodFitsStoragePoolPred,
+		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
+			plugins.Filter = appendToPluginSet(plugins.Filter, csistoragepool.Name, nil)
 			return
 		})
 	registry.registerPredicateConfigProducer(HostNamePred,

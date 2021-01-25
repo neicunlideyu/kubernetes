@@ -60,6 +60,8 @@ const (
 	eventsGroup         = "events.k8s.io"
 
 	nonNativeResourceGroup = "non.native.resource.k8s.io"
+
+	csiStorageGroup = "csi.storage.k8s.io"
 )
 
 func addDefaultMetadata(obj runtime.Object) {
@@ -536,6 +538,8 @@ func ClusterRoles() []rbacv1.ClusterRole {
 		rbacv1helpers.NewRule("get", "update").Groups(legacyGroup).Resources("endpoints").Names("kube-scheduler").RuleOrDie(),
 		// non native resource rules
 		rbacv1helpers.NewRule(Read...).Groups(nonNativeResourceGroup).Resources("refinednoderesources").RuleOrDie(),
+		// csi storage resources
+		rbacv1helpers.NewRule(Read...).Groups(csiStorageGroup).Resources("csistoragepools").RuleOrDie(),
 
 		// priorityclass rules
 		rbacv1helpers.NewRule("get", "list", "watch").Groups("scheduling.k8s.io").Resources("priorityclasses").RuleOrDie(),

@@ -17,6 +17,7 @@ limitations under the License.
 package plugins
 
 import (
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/csistoragepool"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultbinder"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/defaultpodtopologyspread"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/hostunique"
@@ -78,6 +79,7 @@ func NewInTreeRegistry() framework.Registry {
 		noderesources.ShareGPUName:                 noderesources.NewShareGPU,
 		labelspreading.Name:                        labelspreading.New,
 		hostunique.Name:                            hostunique.New,
+		csistoragepool.Name:                        csistoragepool.New,
 		nodepackage.Name:                           nodepackage.New,
 		nodepackage.NodePackageCPUMatch:            nodepackage.NewNodePackageCPUMatch,
 		nodepackage.NodePackageMemMatch:            nodepackage.NewNodePackageMemMatch,

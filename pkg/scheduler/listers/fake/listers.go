@@ -19,6 +19,8 @@ package fake
 import (
 	"fmt"
 
+	csistoragepoolv1alpha1 "code.byted.org/kubernetes/apis/k8s/csi/v1alpha1"
+	bytedcsilisters "code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -353,4 +355,21 @@ func (classes StorageClassLister) Get(name string) (*storagev1.StorageClass, err
 // List lists all StorageClass in the indexer.
 func (classes StorageClassLister) List(selector labels.Selector) ([]*storagev1.StorageClass, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+var _ bytedcsilisters.CSIStoragePoolLister = CSIStoragePoolLister{}
+
+type CSIStoragePoolLister []csistoragepoolv1alpha1.CSIStoragePool
+
+func (pool CSIStoragePoolLister) List(_ labels.Selector) (ret []*csistoragepoolv1alpha1.CSIStoragePool, err error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (pool CSIStoragePoolLister) Get(name string) (*csistoragepoolv1alpha1.CSIStoragePool, error) {
+	for _, p := range pool {
+		if p.Name == name {
+			return &p, nil
+		}
+	}
+	return nil, fmt.Errorf("Unable to find csi storage pool: %s", name)
 }

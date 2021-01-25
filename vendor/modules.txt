@@ -18,7 +18,7 @@ code.byted.org/kubernetes/clientsets/k8s/kubernetes/typed/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/kubernetes/typed/non.native.resource/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
-# code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e => code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e
+# code.byted.org/tce/kube-tracing v0.2.1 => code.byted.org/tce/kube-tracing v0.2.1
 code.byted.org/tce/kube-tracing
 # github.com/Azure/azure-sdk-for-go v35.0.0+incompatible => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute
@@ -633,7 +633,7 @@ github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52 => github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
-# github.com/opentracing/opentracing-go v1.1.0-tce-kube-tracing => code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing
+# github.com/opentracing/opentracing-go v1.1.1 => code.byted.org/tce/opentracing-go v1.1.0-tce-kube-tracing
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
@@ -641,7 +641,7 @@ github.com/opentracing/opentracing-go/log
 github.com/pelletier/go-toml
 # github.com/peterbourgon/diskv v2.0.1+incompatible => github.com/peterbourgon/diskv v2.0.1+incompatible
 github.com/peterbourgon/diskv
-# github.com/pkg/errors v0.8.1 => github.com/pkg/errors v0.8.1
+# github.com/pkg/errors v0.9.1 => github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0 => github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
@@ -699,7 +699,7 @@ github.com/storageos/go-api/serror
 github.com/storageos/go-api/types
 # github.com/stretchr/objx v0.2.0 => github.com/stretchr/objx v0.2.0
 github.com/stretchr/objx
-# github.com/stretchr/testify v1.6.1 => github.com/stretchr/testify v1.4.0
+# github.com/stretchr/testify v1.7.0 => github.com/stretchr/testify v1.4.0
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
@@ -710,7 +710,7 @@ github.com/thecodeteam/goscaleio
 github.com/thecodeteam/goscaleio/types/v1
 # github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8 => github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8
 github.com/tmc/grpc-websocket-proxy/wsproxy
-# github.com/uber/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible => code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
+# github.com/uber/jaeger-client-go v2.16.1+incompatible => code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
 github.com/uber/jaeger-client-go
 github.com/uber/jaeger-client-go/config
 github.com/uber/jaeger-client-go/internal/baggage
@@ -881,7 +881,7 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# go.uber.org/atomic v1.3.2 => go.uber.org/atomic v1.3.2
+# go.uber.org/atomic v1.7.0 => go.uber.org/atomic v1.3.2
 go.uber.org/atomic
 # go.uber.org/multierr v1.1.0 => go.uber.org/multierr v1.1.0
 go.uber.org/multierr

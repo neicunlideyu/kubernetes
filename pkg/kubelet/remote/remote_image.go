@@ -22,13 +22,12 @@ import (
 	"fmt"
 	"time"
 
+	kubetracing "code.byted.org/tce/kube-tracing"
 	"google.golang.org/grpc"
-	"k8s.io/klog"
-
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/util"
-	kubetracing "k8s.io/kubernetes/third_party/kube-tracing"
 )
 
 // RemoteImageService is a gRPC implementation of internalapi.ImageManagerService.

@@ -5,8 +5,6 @@ export HTTPS_PROXY=http://bj-rd-proxy.byted.org:3128
 HOSTARCH=$(go env GOHOSTARCH)
 export GOARCH=${HOSTARCH}
 
-bash ./hack/update-tracing-packages.sh
-
 case ${ARCH} in
   aarch64)
     export GOARCH=arm64

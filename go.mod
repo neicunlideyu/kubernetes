@@ -10,13 +10,12 @@ require (
 	bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690
 	code.byted.org/kubernetes/apis v0.1.1
 	code.byted.org/kubernetes/clientsets v0.1.1
-	code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e
+	code.byted.org/tce/kube-tracing v0.2.1
 	github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.9.0
 	github.com/Azure/go-autorest/autorest/adal v0.5.0
 	github.com/Azure/go-autorest/autorest/to v0.2.0
 	github.com/GoogleCloudPlatform/k8s-cloud-provider v0.0.0-20190822182118-27a4ced34534
-	github.com/HdrHistogram/hdrhistogram-go v1.0.1 // indirect
 	github.com/JeffAshton/win_pdh v0.0.0-20161109143554-76bb4ee9f0ab
 	github.com/Microsoft/go-winio v0.4.14
 	github.com/Microsoft/hcsshim v0.0.0-20190417211021-672e52e9209d
@@ -100,8 +99,8 @@ require (
 	github.com/opencontainers/runc v1.0.0-rc10
 	github.com/opencontainers/runtime-spec v1.0.0 // indirect
 	github.com/opencontainers/selinux v1.3.1-0.20190929122143-5215b1806f52
-	github.com/opentracing/opentracing-go v1.1.0-tce-kube-tracing
-	github.com/pkg/errors v0.8.1
+	github.com/opentracing/opentracing-go v1.1.1
+	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/pquerna/ffjson v0.0.0-20180717144149-af8b230fcd20 // indirect
 	github.com/prometheus/client_golang v1.0.0
@@ -118,12 +117,9 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.3.2
 	github.com/storageos/go-api v0.0.0-20180912212459-343b3eff91fc
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/thecodeteam/goscaleio v0.1.0
-	github.com/uber-go/atomic v1.3.2 // indirect
-	github.com/uber/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
-	github.com/uber/jaeger-lib v2.4.0+incompatible // indirect
 	github.com/urfave/negroni v1.0.0 // indirect
 	github.com/vishvananda/netlink v1.0.0
 	github.com/vishvananda/netns v0.0.0-20171111001504-be1fbeda1936
@@ -183,7 +179,7 @@ replace (
 	cloud.google.com/go => cloud.google.com/go v0.38.0
 	code.byted.org/kubernetes/apis => code.byted.org/kubernetes/apis v0.1.1
 	code.byted.org/kubernetes/clientsets => code.byted.org/kubernetes/clientsets v0.1.1
-	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.0.0-20201127135536-5e2530b3fe9e
+	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.2.1
 	github.com/Azure/azure-sdk-for-go => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-ansiterm => github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 	github.com/Azure/go-autorest/autorest => github.com/Azure/go-autorest/autorest v0.9.0

@@ -23,7 +23,7 @@ require (
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.10
+	k8s.io/apimachinery v0.18.11-rc.0
 	k8s.io/client-go v0.18.10
 	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6 // release-1.18
 	sigs.k8s.io/kustomize v2.0.3+incompatible
@@ -42,5 +42,5 @@ replace (
 	k8s.io/apimachinery => ../apimachinery
 	k8s.io/cli-runtime => ../cli-runtime
 	k8s.io/client-go => ../client-go
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
 )

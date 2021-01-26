@@ -28,14 +28,14 @@ require (
 	gopkg.in/gcfg.v1 v1.2.0
 	gopkg.in/warnings.v0 v0.1.1 // indirect
 	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.10
+	k8s.io/apimachinery v0.18.11-rc.0
 	k8s.io/apiserver v0.0.0
 	k8s.io/client-go v0.18.10
 	k8s.io/cloud-provider v0.0.0
 	k8s.io/component-base v0.0.0
 	k8s.io/csi-translation-lib v0.0.0
 	k8s.io/klog v1.0.0
-	k8s.io/utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca
 	sigs.k8s.io/yaml v1.2.0
 )
 
@@ -56,5 +56,5 @@ replace (
 	k8s.io/component-base => ../component-base
 	k8s.io/csi-translation-lib => ../csi-translation-lib
 	k8s.io/legacy-cloud-providers => ../legacy-cloud-providers
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
 )

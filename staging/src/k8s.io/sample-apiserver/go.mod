@@ -8,7 +8,7 @@ require (
 	github.com/go-openapi/spec v0.19.3
 	github.com/google/gofuzz v1.1.0
 	github.com/spf13/cobra v0.0.5
-	k8s.io/apimachinery v0.18.10
+	k8s.io/apimachinery v0.18.11-rc.0
 	k8s.io/apiserver v0.0.0
 	k8s.io/client-go v0.18.10
 	k8s.io/code-generator v0.18.16-rc.0
@@ -33,5 +33,5 @@ replace (
 	k8s.io/code-generator => ../code-generator
 	k8s.io/component-base => ../component-base
 	k8s.io/sample-apiserver => ../sample-apiserver
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
 )

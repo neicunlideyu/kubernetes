@@ -2,10 +2,10 @@
 bitbucket.org/bertimus9/systemstat
 # cloud.google.com/go v0.38.0 => cloud.google.com/go v0.38.0
 cloud.google.com/go/compute/metadata
-# code.byted.org/kubernetes/apis v0.1.1 => code.byted.org/kubernetes/apis v0.1.1
+# code.byted.org/kubernetes/apis v0.1.3 => code.byted.org/kubernetes/apis v0.1.3
 code.byted.org/kubernetes/apis/k8s/csi/v1alpha1
 code.byted.org/kubernetes/apis/k8s/non.native.resource/v1alpha1
-# code.byted.org/kubernetes/clientsets v0.1.1 => code.byted.org/kubernetes/clientsets v0.1.1
+# code.byted.org/kubernetes/clientsets v0.1.3 => code.byted.org/kubernetes/clientsets v0.1.3
 code.byted.org/kubernetes/clientsets/k8s/informers
 code.byted.org/kubernetes/clientsets/k8s/informers/csi
 code.byted.org/kubernetes/clientsets/k8s/informers/csi/v1alpha1
@@ -18,7 +18,7 @@ code.byted.org/kubernetes/clientsets/k8s/kubernetes/typed/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/kubernetes/typed/non.native.resource/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1
 code.byted.org/kubernetes/clientsets/k8s/listers/non.native.resource/v1alpha1
-# code.byted.org/tce/kube-tracing v0.2.1 => code.byted.org/tce/kube-tracing v0.2.1
+# code.byted.org/tce/kube-tracing v0.2.2 => code.byted.org/tce/kube-tracing v0.2.2
 code.byted.org/tce/kube-tracing
 # github.com/Azure/azure-sdk-for-go v35.0.0+incompatible => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute
@@ -1240,7 +1240,7 @@ k8s.io/apiextensions-apiserver/pkg/registry/customresource/tableconvertor
 k8s.io/apiextensions-apiserver/pkg/registry/customresourcedefinition
 k8s.io/apiextensions-apiserver/test/integration
 k8s.io/apiextensions-apiserver/test/integration/fixtures
-# k8s.io/apimachinery v0.18.10 => ./staging/src/k8s.io/apimachinery
+# k8s.io/apimachinery v0.18.11-rc.0 => ./staging/src/k8s.io/apimachinery
 k8s.io/apimachinery/pkg/api/apitesting
 k8s.io/apimachinery/pkg/api/apitesting/fuzzer
 k8s.io/apimachinery/pkg/api/apitesting/naming
@@ -1986,7 +1986,7 @@ k8s.io/sample-apiserver/pkg/registry/wardle/fischer
 k8s.io/sample-apiserver/pkg/registry/wardle/flunder
 # k8s.io/system-validators v1.0.4 => k8s.io/system-validators v1.0.4
 k8s.io/system-validators/validators
-# k8s.io/utils v0.0.0-20201125131702-a289a73e4c95 => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+# k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
 k8s.io/utils/buffer
 k8s.io/utils/clock
 k8s.io/utils/exec

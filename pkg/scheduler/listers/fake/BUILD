@@ -16,6 +16,8 @@ go_library(
         "//staging/src/k8s.io/client-go/listers/apps/v1:go_default_library",
         "//staging/src/k8s.io/client-go/listers/core/v1:go_default_library",
         "//staging/src/k8s.io/client-go/listers/storage/v1:go_default_library",
+        "//vendor/code.byted.org/kubernetes/apis/k8s/csi/v1alpha1:go_default_library",
+        "//vendor/code.byted.org/kubernetes/clientsets/k8s/listers/csi/v1alpha1:go_default_library",
     ],
 )
 

@@ -7,10 +7,10 @@ go 1.13
 require (
 	google.golang.org/appengine v1.5.0 // indirect
 	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.10
+	k8s.io/apimachinery v0.18.11-rc.0
 	k8s.io/client-go v0.18.10
 	k8s.io/klog v1.0.0
-	k8s.io/utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca
 )
 
 replace (
@@ -25,5 +25,5 @@ replace (
 	k8s.io/apimachinery => ../apimachinery
 	k8s.io/client-go => ../client-go
 	k8s.io/cloud-provider => ../cloud-provider
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
 )

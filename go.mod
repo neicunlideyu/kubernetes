@@ -8,9 +8,9 @@ go 1.13
 
 require (
 	bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690
-	code.byted.org/kubernetes/apis v0.1.1
-	code.byted.org/kubernetes/clientsets v0.1.1
-	code.byted.org/tce/kube-tracing v0.2.1
+	code.byted.org/kubernetes/apis v0.1.3
+	code.byted.org/kubernetes/clientsets v0.1.3
+	code.byted.org/tce/kube-tracing v0.2.2
 	github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.9.0
 	github.com/Azure/go-autorest/autorest/adal v0.5.0
@@ -144,7 +144,7 @@ require (
 	honnef.co/go/tools v0.0.1-2019.2.2
 	k8s.io/api v0.18.10
 	k8s.io/apiextensions-apiserver v0.0.0
-	k8s.io/apimachinery v0.18.10
+	k8s.io/apimachinery v0.18.11-rc.0
 	k8s.io/apiserver v0.0.0
 	k8s.io/cli-runtime v0.0.0
 	k8s.io/client-go v0.18.10
@@ -169,7 +169,7 @@ require (
 	k8s.io/repo-infra v0.0.1-alpha.1
 	k8s.io/sample-apiserver v0.0.0
 	k8s.io/system-validators v1.0.4
-	k8s.io/utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0
 )
@@ -177,9 +177,9 @@ require (
 replace (
 	bitbucket.org/bertimus9/systemstat => bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690
 	cloud.google.com/go => cloud.google.com/go v0.38.0
-	code.byted.org/kubernetes/apis => code.byted.org/kubernetes/apis v0.1.1
-	code.byted.org/kubernetes/clientsets => code.byted.org/kubernetes/clientsets v0.1.1
-	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.2.1
+	code.byted.org/kubernetes/apis => code.byted.org/kubernetes/apis v0.1.3
+	code.byted.org/kubernetes/clientsets => code.byted.org/kubernetes/clientsets v0.1.3
+	code.byted.org/tce/kube-tracing => code.byted.org/tce/kube-tracing v0.2.2
 	github.com/Azure/azure-sdk-for-go => github.com/Azure/azure-sdk-for-go v35.0.0+incompatible
 	github.com/Azure/go-ansiterm => github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 	github.com/Azure/go-autorest/autorest => github.com/Azure/go-autorest/autorest v0.9.0
@@ -576,7 +576,7 @@ replace (
 	k8s.io/sample-cli-plugin => ./staging/src/k8s.io/sample-cli-plugin
 	k8s.io/sample-controller => ./staging/src/k8s.io/sample-controller
 	k8s.io/system-validators => k8s.io/system-validators v1.0.4
-	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20201125131702-a289a73e4c95
+	k8s.io/utils => code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca
 	modernc.org/cc => modernc.org/cc v1.0.0
 	modernc.org/golex => modernc.org/golex v1.0.0
 	modernc.org/mathutil => modernc.org/mathutil v1.0.0

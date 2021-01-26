@@ -5,10 +5,9 @@ module k8s.io/cloud-provider
 go 1.13
 
 require (
-	google.golang.org/appengine v1.5.0 // indirect
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.11-rc.0
-	k8s.io/client-go v0.18.10
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
+	k8s.io/client-go v0.0.0
 	k8s.io/klog v1.0.0
 	k8s.io/utils v0.0.0-20210126070639-a7af8a8f5dca
 )

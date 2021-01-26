@@ -5,11 +5,10 @@ module k8s.io/sample-controller
 go 1.13
 
 require (
-	google.golang.org/appengine v1.5.0 // indirect
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.11-rc.0
-	k8s.io/client-go v0.18.10
-	k8s.io/code-generator v0.18.16-rc.0
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
+	k8s.io/client-go v0.0.0
+	k8s.io/code-generator v0.0.0
 	k8s.io/klog v1.0.0
 )
 

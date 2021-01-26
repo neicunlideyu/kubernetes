@@ -11,7 +11,6 @@ require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-openapi/jsonreference v0.19.3 // indirect
 	github.com/go-openapi/spec v0.19.3 // indirect
-	github.com/google/btree v1.0.0 // indirect
 	github.com/googleapis/gnostic v0.1.0
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de
 	github.com/mailru/easyjson v0.7.0 // indirect
@@ -20,11 +19,10 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/text v0.3.2
-	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.11-rc.0
-	k8s.io/client-go v0.18.10
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
+	k8s.io/client-go v0.0.0
 	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6 // release-1.18
 	sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml v1.2.0

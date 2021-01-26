@@ -7,11 +7,10 @@ go 1.13
 require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/stretchr/testify v1.7.0
-	google.golang.org/appengine v1.5.0 // indirect
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.11-rc.0
-	k8s.io/client-go v0.18.10
-	k8s.io/code-generator v0.18.16-rc.0
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
+	k8s.io/client-go v0.0.0
+	k8s.io/code-generator v0.0.0
 )
 
 replace (

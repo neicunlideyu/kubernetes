@@ -27,10 +27,10 @@ require (
 	google.golang.org/api v0.6.1-0.20190607001116-5213b8090861
 	gopkg.in/gcfg.v1 v1.2.0
 	gopkg.in/warnings.v0 v0.1.1 // indirect
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.11-rc.0
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
 	k8s.io/apiserver v0.0.0
-	k8s.io/client-go v0.18.10
+	k8s.io/client-go v0.0.0
 	k8s.io/cloud-provider v0.0.0
 	k8s.io/component-base v0.0.0
 	k8s.io/csi-translation-lib v0.0.0

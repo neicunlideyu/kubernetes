@@ -14,11 +14,11 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
-	k8s.io/api v0.18.10
-	k8s.io/apimachinery v0.18.11-rc.0
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
 	k8s.io/apiserver v0.0.0
-	k8s.io/client-go v0.18.10
-	k8s.io/code-generator v0.18.16-rc.0
+	k8s.io/client-go v0.0.0
+	k8s.io/code-generator v0.0.0
 	k8s.io/component-base v0.0.0
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200410145947-61e04a5be9a6 // release-1.18

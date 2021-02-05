@@ -644,6 +644,9 @@ func (g *genericScheduler) findNodesThatPassFilters(ctx context.Context, prof *p
 	preFilteredNodeNames := g.PrePredicateFiltering(pod, allNodes, g.refinedNodeResourceInformer.Lister())
 	printPrePredicateDebugMessage(pod, allNodes, preFilteredNodeNames)
 	allNodes = schedulernodeinfo.GetFilteredNodes(allNodes, preFilteredNodeNames)
+	if len(allNodes) == 0 {
+		return nil, nil
+	}
 
 	numNodesToFind := g.numFeasibleNodesToFind(int32(len(allNodes)))
 

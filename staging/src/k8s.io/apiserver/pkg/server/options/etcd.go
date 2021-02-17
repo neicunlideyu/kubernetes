@@ -182,6 +182,8 @@ func (s *EtcdOptions) AddFlags(fs *pflag.FlagSet) {
 
 	fs.BoolVar(&s.EnableEtcdProtection, "enable-etcd-protection", s.EnableEtcdProtection, ""+
 		"Enables the etcd protection, reject list request from node before cache initialization.")
+
+	fs.IntVar(&s.StorageConfig.ETCDMaxLimit, "etcd-max-limit", storagebackend.DefaultETCDMaxSise, "")
 }
 
 func (s *EtcdOptions) ApplyTo(c *server.Config) error {

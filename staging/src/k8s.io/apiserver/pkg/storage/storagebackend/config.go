@@ -29,6 +29,7 @@ const (
 	StorageTypeETCD3 = "etcd3"
 
 	DefaultCompactInterval = 5 * time.Minute
+	DefaultETCDMaxSise     = 10000
 )
 
 // TransportConfig holds all connection related info,  i.e. equal TransportConfig means equal servers we talk to.
@@ -71,6 +72,9 @@ type Config struct {
 	CompactionInterval time.Duration
 	// CountMetricPollPeriod specifies how often should count metric be updated
 	CountMetricPollPeriod time.Duration
+	// ETCDMaxLimit specifies the max limit size when do sync from ETCD
+	// Will be ignored when <= zero
+	ETCDMaxLimit int
 }
 
 func NewDefaultConfig(prefix string, codec runtime.Codec) *Config {
@@ -79,5 +83,6 @@ func NewDefaultConfig(prefix string, codec runtime.Codec) *Config {
 		Prefix:             prefix,
 		Codec:              codec,
 		CompactionInterval: DefaultCompactInterval,
+		ETCDMaxLimit:       DefaultETCDMaxSise,
 	}
 }

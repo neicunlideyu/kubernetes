@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"path"
 	"reflect"
 	"strings"
@@ -73,6 +74,7 @@ type store struct {
 	watcher       *watcher
 	pagingEnabled bool
 	leaseManager  *leaseManager
+	maxLimit      int64
 }
 
 type objState struct {
@@ -84,11 +86,11 @@ type objState struct {
 }
 
 // New returns an etcd3 implementation of storage.Interface.
-func New(c *clientv3.Client, codec runtime.Codec, prefix string, transformer value.Transformer, pagingEnabled bool) storage.Interface {
-	return newStore(c, pagingEnabled, codec, prefix, transformer)
+func New(c *clientv3.Client, codec runtime.Codec, prefix string, transformer value.Transformer, pagingEnabled bool, maxLimit int) storage.Interface {
+	return newStore(c, pagingEnabled, codec, prefix, transformer, maxLimit)
 }
 
-func newStore(c *clientv3.Client, pagingEnabled bool, codec runtime.Codec, prefix string, transformer value.Transformer) *store {
+func newStore(c *clientv3.Client, pagingEnabled bool, codec runtime.Codec, prefix string, transformer value.Transformer, maxLimit int) *store {
 	versioner := APIObjectVersioner{}
 	result := &store{
 		client:        c,
@@ -102,6 +104,7 @@ func newStore(c *clientv3.Client, pagingEnabled bool, codec runtime.Codec, prefi
 		pathPrefix:   path.Join("/", prefix),
 		watcher:      newWatcher(c, codec, versioner, transformer),
 		leaseManager: newDefaultLeaseManager(c),
+		maxLimit:     int64(maxLimit),
 	}
 	return result
 }
@@ -550,6 +553,15 @@ func (s *store) List(ctx context.Context, key, resourceVersion string, pred stor
 	options := make([]clientv3.OpOption, 0, 4)
 	if s.pagingEnabled && pred.Limit > 0 {
 		paging = true
+	} else if s.pagingEnabled && pred.Limit == 0 && s.maxLimit > 0 {
+		// 当尝试获取全部数据的时候,如果存储支持分页,会通过分页的方式加载数据,防止数据过大加载失败
+		paging = true
+		pred.Limit = math.MaxInt64
+	}
+
+	if pred.Limit > s.maxLimit && s.maxLimit > 0 {
+		options = append(options, clientv3.WithLimit(s.maxLimit))
+	} else {
 		options = append(options, clientv3.WithLimit(pred.Limit))
 	}
 

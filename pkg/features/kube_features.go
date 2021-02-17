@@ -624,6 +624,12 @@ const (
 	//
 	// Enables CSIStoragePool CRD, if this is enabled, we must create CSIStoragePool CRD, otherwise, scheduler will get stuck
 	CSIStoragePool featuregate.Feature = "CSIStoragePool"
+
+	// owner: @ahg-g
+	// alpha: v1.21
+	//
+	// Enables controlling pod ranking on replicaset scale-down.
+	PodDeletionCost featuregate.Feature = "PodDeletionCost"
 )
 
 func init() {
@@ -721,6 +727,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	DynamicLoadEvictionThreshold:                   {Default: false, PreRelease: featuregate.Alpha},
 	LocalVMPodOverhead:                             {Default: true, PreRelease: featuregate.Alpha},
 	ShareGPU:                                       {Default: false, PreRelease: featuregate.Alpha},
+	PodDeletionCost:                                {Default: false, PreRelease: featuregate.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

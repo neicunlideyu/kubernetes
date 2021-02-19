@@ -6,8 +6,8 @@ code.byted.org/kubernetes/apis v0.1.3 h1:1AhPZMwrLkZBuVBTf8O5FjocTTolDQXzZYNcaaO
 code.byted.org/kubernetes/apis v0.1.3/go.mod h1:EegxlZ1MxCDPD/SXuONXvRXVm1sZr7AINmv/shms+oY=
 code.byted.org/kubernetes/clientsets v0.1.3 h1:byTjyaBDmRMDsr51L8S4rDILiPepQINf8qLoya8OYBo=
 code.byted.org/kubernetes/clientsets v0.1.3/go.mod h1:qjrQKoavpNyOSffNJIvckHTO8klkudI6xv8FkkYvZgk=
-code.byted.org/tce/cadvisor v0.37.0 h1:TaQ7QDyjKS3FETUcvXp1VJK4sA4+8Cz9E0/FIS7JjbE=
-code.byted.org/tce/cadvisor v0.37.0/go.mod h1:OhDE+goNVel0eGY8mR7Ifq1QUI1in5vJBIgIpcajK/I=
+code.byted.org/tce/cadvisor v0.37.1 h1:3W5C+D5Tm/jPqdJ8Cn7NSnNJd6nRddxvKizUUgqwCK8=
+code.byted.org/tce/cadvisor v0.37.1/go.mod h1:OhDE+goNVel0eGY8mR7Ifq1QUI1in5vJBIgIpcajK/I=
 code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible h1:nlslLWfjWRfTu3IdR87xNVI3k37VvSGvvtA1RpQbKr8=
 code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible/go.mod h1:B+UUxYQz1AtjR7UXyTfxJU+tmnPOjKd2Hy/Pf1Adg6w=
 code.byted.org/tce/k8s-utils v0.0.0-20210126070639-a7af8a8f5dca h1:q+FrMyX9iT1zU/CC4E1ZzSrUuaQFPVmJwI4uqgK1p9I=

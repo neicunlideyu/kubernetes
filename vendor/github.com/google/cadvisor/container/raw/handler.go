@@ -24,6 +24,7 @@ import (
 	"github.com/google/cadvisor/fs"
 	info "github.com/google/cadvisor/info/v1"
 	"github.com/google/cadvisor/machine"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 
 	"k8s.io/klog/v2"
 )
@@ -233,7 +234,9 @@ func (h *rawContainerHandler) GetStats() (*info.ContainerStats, error) {
 	if err != nil {
 		return stats, err
 	}
-	_ = h.getRootMemory(stats)
+	if !cgroups.IsCgroup2UnifiedMode() {
+		_ = h.getRootMemory(stats)
+	}
 	// Get filesystem stats.
 	err = h.getFsStats(stats)
 	if err != nil {

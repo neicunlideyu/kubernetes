@@ -154,6 +154,7 @@ go_library(
         "//vendor/code.byted.org/tce/kube-tracing:go_default_library",
         "//vendor/github.com/golang/groupcache/lru:go_default_library",
         "//vendor/github.com/google/cadvisor/info/v1:go_default_library",
+        "//vendor/github.com/google/cadvisor/info/v2:go_default_library",
         "//vendor/github.com/opentracing/opentracing-go:go_default_library",
         "//vendor/k8s.io/klog:go_default_library",
         "//vendor/k8s.io/utils/exec:go_default_library",

@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 
 	cadvisorapiv1 "github.com/google/cadvisor/info/v1"
+	cadvisorv2 "github.com/google/cadvisor/info/v2"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 	utilpath "k8s.io/utils/path"
@@ -346,6 +347,11 @@ func (kl *Kubelet) podVolumeSubpathsDirExists(podUID types.UID) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetRequestedContainersInfo returns container info.
+func (kl *Kubelet) GetRequestedContainersInfo(containerName string, options cadvisorv2.RequestOptions) (map[string]*cadvisorapiv1.ContainerInfo, error) {
+	return kl.cadvisor.GetRequestedContainersInfo(containerName, options)
 }
 
 // GetVersionInfo returns information about the version of cAdvisor in use.

@@ -337,6 +337,11 @@ func ChooseHostInterface() (net.IP, error) {
 }
 
 func chooseHostInterface(addressFamilies AddressFamilyPreference) (net.IP, error) {
+	// Use Dial to detect local IP first
+	ip, err := getDefaultIPAddressByDial(addressFamilies)
+	if err == nil {
+		return ip, err
+	}
 	var nw networkInterfacer = networkInterface{}
 	if _, err := os.Stat(ipv4RouteFile); os.IsNotExist(err) {
 		return chooseIPFromHostInterfaces(nw, addressFamilies)

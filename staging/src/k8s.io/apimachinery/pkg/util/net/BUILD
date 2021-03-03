@@ -31,6 +31,7 @@ go_library(
         "interface.go",
         "port_range.go",
         "port_split.go",
+        "router_tool.go",
         "util.go",
     ],
     importmap = "k8s.io/kubernetes/vendor/k8s.io/apimachinery/pkg/util/net",

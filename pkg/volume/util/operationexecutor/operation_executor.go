@@ -232,6 +232,10 @@ type ActualStateOfWorldAttacherUpdater interface {
 	// Unmarks the desire to detach for the specified volume (add the volume back to
 	// the node's volumesToReportAsAttached list)
 	AddVolumeToReportAsAttached(volumeName v1.UniqueVolumeName, nodeName types.NodeName)
+
+	MarkVolumeAsResidual(volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, nodeName types.NodeName, devicePath string) error
+
+	RemoveResidualVolume(volumeName v1.UniqueVolumeName)
 }
 
 // VolumeLogger defines a set of operations for generating volume-related logging and error msgs

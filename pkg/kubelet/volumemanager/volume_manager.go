@@ -159,6 +159,7 @@ func NewVolumeManager(
 	mounter mount.Interface,
 	hostutil hostutil.HostUtils,
 	kubeletPodsDir string,
+	kubeletPluginsDir string,
 	recorder record.EventRecorder,
 	checkNodeCapabilitiesBeforeMount bool,
 	keepTerminatedPodVolumes bool,
@@ -207,7 +208,8 @@ func NewVolumeManager(
 		mounter,
 		hostutil,
 		volumePluginMgr,
-		kubeletPodsDir)
+		kubeletPodsDir,
+		kubeletPluginsDir)
 
 	return vm
 }

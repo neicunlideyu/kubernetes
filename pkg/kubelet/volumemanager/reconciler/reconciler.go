@@ -36,6 +36,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	clientset "k8s.io/client-go/kubernetes"
@@ -44,11 +45,21 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/volumemanager/cache"
 	"k8s.io/kubernetes/pkg/util/goroutinemap/exponentialbackoff"
 	volumepkg "k8s.io/kubernetes/pkg/volume"
+	"k8s.io/kubernetes/pkg/volume/csi"
 	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/kubernetes/pkg/volume/util/hostutil"
 	"k8s.io/kubernetes/pkg/volume/util/nestedpendingoperations"
 	"k8s.io/kubernetes/pkg/volume/util/operationexecutor"
 	volumetypes "k8s.io/kubernetes/pkg/volume/util/types"
+)
+
+var (
+	driversCouldClear = sets.NewString("localstoragedrive.csi.bytedance.com", "sharememorydrive.csi.bytedance.com")
+)
+
+const (
+	persistentVolumeInGlobalPath = "pv"
+	globalMountInGlobalPath      = "globalmount"
 )
 
 // Reconciler runs a periodic loop to reconcile the desired state of the world
@@ -106,7 +117,8 @@ func NewReconciler(
 	mounter mount.Interface,
 	hostutil hostutil.HostUtils,
 	volumePluginMgr *volumepkg.VolumePluginMgr,
-	kubeletPodsDir string) Reconciler {
+	kubeletPodsDir string,
+	kubeletPluginsDir string) Reconciler {
 	return &reconciler{
 		kubeClient:                    kubeClient,
 		controllerAttachDetachEnabled: controllerAttachDetachEnabled,
@@ -121,6 +133,7 @@ func NewReconciler(
 		hostutil:                      hostutil,
 		volumePluginMgr:               volumePluginMgr,
 		kubeletPodsDir:                kubeletPodsDir,
+		kubeletPluginsDir:             kubeletPluginsDir,
 		timeOfLastSync:                time.Time{},
 	}
 }
@@ -139,6 +152,7 @@ type reconciler struct {
 	hostutil                      hostutil.HostUtils
 	volumePluginMgr               *volumepkg.VolumePluginMgr
 	kubeletPodsDir                string
+	kubeletPluginsDir             string
 	timeOfLastSync                time.Time
 }
 
@@ -336,6 +350,34 @@ func (rc *reconciler) unmountDetachDevices() {
 			}
 		}
 	}
+
+	for _, residualVolume := range rc.actualStateOfWorld.GetResidualVolumes() {
+		if rc.actualStateOfWorld.VolumeExists(residualVolume.VolumeName) {
+			rc.actualStateOfWorld.RemoveResidualVolume(residualVolume.VolumeName)
+			continue
+		}
+		if rc.desiredStateOfWorld.VolumeExists(residualVolume.VolumeName) {
+			rc.actualStateOfWorld.RemoveResidualVolume(residualVolume.VolumeName)
+			continue
+		}
+		if !rc.operationExecutor.IsOperationPending(residualVolume.VolumeName, nestedpendingoperations.EmptyUniquePodName, nestedpendingoperations.EmptyNodeName) {
+			// Volume is globally mounted to device, unmount it
+			klog.V(5).Infof(residualVolume.GenerateMsgDetailed("Starting operationExecutor.UnmountDevice", ""))
+			err := rc.operationExecutor.UnmountDevice(
+				residualVolume.AttachedVolume, rc.actualStateOfWorld, rc.hostutil)
+			if err != nil &&
+				!nestedpendingoperations.IsAlreadyExists(err) &&
+				!exponentialbackoff.IsExponentialBackoff(err) {
+				// Ignore nestedpendingoperations.IsAlreadyExists and exponentialbackoff.IsExponentialBackoff errors, they are expected.
+				// Log all other errors.
+				klog.Errorf(residualVolume.GenerateErrorDetailed(fmt.Sprintf("operationExecutor.UnmountDevice failed (controllerAttachDetachEnabled %v)", rc.controllerAttachDetachEnabled), err).Error())
+			}
+			if err == nil {
+				rc.actualStateOfWorld.RemoveResidualVolume(residualVolume.VolumeName)
+				klog.Infof(residualVolume.GenerateMsgDetailed("operationExecutor.UnmountDevice started", ""))
+			}
+		}
+	}
 }
 
 // sync process tries to observe the real world by scanning all pods' volume directories from the disk.
@@ -346,6 +388,7 @@ func (rc *reconciler) unmountDetachDevices() {
 func (rc *reconciler) sync() {
 	defer rc.updateLastSyncTime()
 	rc.syncStates()
+	rc.syncCSIPluginsStates()
 }
 
 func (rc *reconciler) updateLastSyncTime() {
@@ -375,6 +418,120 @@ type reconstructedVolume struct {
 	mounter             volumepkg.Mounter
 	deviceMounter       volumepkg.DeviceMounter
 	blockVolumeMapper   volumepkg.BlockVolumeMapper
+}
+
+// syncCSIVolumesStates scans the volume directories.
+// If the csi volume is not in actual state of the world, this function will reconstruct
+// the volume related information and put it in the actual state of worlds.
+func (rc *reconciler) syncCSIPluginsStates() {
+	// Get volumes information by reading the volume's directory, they have file system mode
+	csiPluginDir := path.Join(rc.kubeletPluginsDir, csi.CSIPluginName, persistentVolumeInGlobalPath)
+	csiVolumes, err := getCSIVolumesFromVolumeDir(csi.CSIPluginName, csiPluginDir)
+	if err != nil {
+		klog.Errorf("failed to list all volumes from csi plugin dir %s: %v", csiPluginDir, err)
+		return
+	}
+
+	for _, volume := range csiVolumes {
+		reconstructedVolume, err := rc.reconstructVolumeWithoutPod(volume)
+		if err != nil {
+			klog.Errorf("failed to reconstruct volume without pod, volume: %v, err: %v", volume, err)
+			continue
+		} else if reconstructedVolume == nil {
+			continue
+		}
+		if rc.actualStateOfWorld.VolumeExists(reconstructedVolume.volumeName) {
+			klog.V(4).Infof("Volume exists in actual state (volume.SpecName %s), skip cleaning up mounts", volume.volumeSpecName)
+			continue
+		}
+		if rc.desiredStateOfWorld.VolumeExists(reconstructedVolume.volumeName) {
+			klog.V(4).Infof("Volume exists in desired state (volume.SpecName %s), skip cleaning up mounts", volume.volumeSpecName)
+			continue
+		}
+		if err := rc.actualStateOfWorld.MarkVolumeAsResidual(reconstructedVolume.volumeName, reconstructedVolume.volumeSpec, "", reconstructedVolume.devicePath); err != nil {
+			klog.Errorf("add residual csi pv failed %s: %v", reconstructedVolume.volumeName, err)
+			continue
+		}
+
+		klog.V(4).Infof("add residual csi pv success: %v", reconstructedVolume.volumeName)
+	}
+}
+
+func (rc *reconciler) reconstructVolumeWithoutPod(volume podVolume) (*reconstructedVolume, error) {
+	// plugin initializations
+	plugin, err := rc.volumePluginMgr.FindPluginByName(volume.pluginName)
+	if err != nil {
+		return nil, err
+	}
+	attachablePlugin, err := rc.volumePluginMgr.FindAttachablePluginByName(volume.pluginName)
+	if err != nil {
+		return nil, err
+	}
+	deviceMountablePlugin, err := rc.volumePluginMgr.FindDeviceMountablePluginByName(volume.pluginName)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeSpec, err := rc.operationExecutor.ReconstructVolumeOperation(
+		volume.volumeMode,
+		plugin,
+		nil,
+		types.UID(""),
+		"",
+		volume.volumeSpecName,
+		volume.volumePath,
+		volume.pluginName)
+	if err != nil {
+		return nil, err
+	}
+	if volumeSpec == nil ||
+		volumeSpec.PersistentVolume == nil ||
+		volumeSpec.PersistentVolume.Spec.CSI == nil ||
+		!driversCouldClear.Has(volumeSpec.PersistentVolume.Spec.CSI.Driver) {
+		return nil, fmt.Errorf("could not support driver for volume %v", volume)
+	}
+	volumeSpec.PersistentVolume.Name = volume.volumeSpecName
+	var uniqueVolumeName v1.UniqueVolumeName
+	if attachablePlugin != nil || deviceMountablePlugin != nil {
+		uniqueVolumeName, err = util.GetUniqueVolumeNameFromSpec(plugin, volumeSpec)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("only support csi plugin")
+	}
+
+	reconstructedVolume := &reconstructedVolume{
+		volumeName: uniqueVolumeName,
+		volumeSpec: volumeSpec,
+		// volume.volumeSpecName is actually InnerVolumeSpecName. It will not be used
+		// for volume cleanup.
+		// TODO: in case pod is added back before reconciler starts to unmount, we can update this field from desired state information
+		outerVolumeSpecName: volume.volumeSpecName,
+		// devicePath is updated during updateStates() by checking node status's VolumesAttached data.
+		// TODO: get device path directly from the volume mount path.
+		devicePath: "",
+	}
+	return reconstructedVolume, nil
+}
+
+func getCSIVolumesFromVolumeDir(pluginName, pluginDir string) ([]podVolume, error) {
+	pvsDirInfo, err := ioutil.ReadDir(pluginDir)
+	if err != nil {
+		return nil, err
+	}
+	volumes := []podVolume{}
+	for i := range pvsDirInfo {
+		pvName := pvsDirInfo[i].Name()
+		volumes = append(volumes, podVolume{
+			volumeSpecName: pvName,
+			pluginName:     pluginName,
+			volumeMode:     v1.PersistentVolumeFilesystem,
+			volumePath:     path.Join(pluginDir, pvName),
+		})
+	}
+	klog.V(4).Infof("Get volumes from plugin directory %q %+v", pluginDir, volumes)
+	return volumes, nil
 }
 
 // syncStates scans the volume directories under the given pod directory.

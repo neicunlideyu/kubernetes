@@ -378,7 +378,7 @@ func NewLegacyRegistry() *LegacyRegistry {
 			plugins.Filter = appendToPluginSet(plugins.Filter, csistoragepool.Name, nil)
 			return
 		})
-	registry.registerPredicateConfigProducer(HostNamePred,
+	registry.registerPredicateConfigProducer(ShareGPUPred,
 		func(args ConfigProducerArgs) (plugins config.Plugins, pluginConfig []config.PluginConfig) {
 			plugins.Filter = appendToPluginSet(plugins.Filter, noderesources.ShareGPUName, nil)
 			return

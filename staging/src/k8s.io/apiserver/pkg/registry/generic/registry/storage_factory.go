@@ -32,7 +32,7 @@ import (
 )
 
 // Creates a cacher based given storageConfig.
-func StorageWithCacher(capacity int, rejectListFromNode bool) generic.StorageDecorator {
+func StorageWithCacher(capacity int, enableEtcdProtection bool) generic.StorageDecorator {
 	return func(
 		storageConfig *storagebackend.Config,
 		resourcePrefix string,
@@ -58,18 +58,18 @@ func StorageWithCacher(capacity int, rejectListFromNode bool) generic.StorageDec
 		// TODO: we would change this later to make storage always have cacher and hide low level KV layer inside.
 		// Currently it has two layers of same storage interface -- cacher and low level kv.
 		cacherConfig := cacherstorage.Config{
-			CacheCapacity:      capacity,
-			Storage:            s,
-			Versioner:          etcd3.APIObjectVersioner{},
-			ResourcePrefix:     resourcePrefix,
-			KeyFunc:            keyFunc,
-			NewFunc:            newFunc,
-			NewListFunc:        newListFunc,
-			GetAttrsFunc:       getAttrsFunc,
-			IndexerFuncs:       triggerFuncs,
-			Indexers:           indexers,
-			Codec:              storageConfig.Codec,
-			RejectListFromNode: rejectListFromNode,
+			CacheCapacity:        capacity,
+			Storage:              s,
+			Versioner:            etcd3.APIObjectVersioner{},
+			ResourcePrefix:       resourcePrefix,
+			KeyFunc:              keyFunc,
+			NewFunc:              newFunc,
+			NewListFunc:          newListFunc,
+			GetAttrsFunc:         getAttrsFunc,
+			IndexerFuncs:         triggerFuncs,
+			Indexers:             indexers,
+			Codec:                storageConfig.Codec,
+			EnableEtcdProtection: enableEtcdProtection,
 		}
 		cacher, err := cacherstorage.NewCacherFromConfig(cacherConfig)
 		if err != nil {

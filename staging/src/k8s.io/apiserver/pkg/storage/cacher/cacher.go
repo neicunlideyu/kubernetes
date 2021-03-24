@@ -35,8 +35,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/apiserver/pkg/authentication/user"
-	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/storage"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -115,7 +113,7 @@ type Config struct {
 
 	Codec runtime.Codec
 
-	RejectListFromNode bool
+	EnableEtcdProtection bool
 }
 
 type watchersMap map[int]*cacheWatcher
@@ -293,8 +291,8 @@ type Cacher struct {
 
 	clock clock.Clock
 
-	// rejectListFromNode is used to protect etcd before initialization
-	rejectListFromNode bool
+	// enableEtcdProtection is used to protect etcd before initialization
+	enableEtcdProtection bool
 
 	// timer is used to avoid unnecessary allocations in underlying watchers.
 	timer *time.Timer
@@ -365,11 +363,11 @@ func NewCacherFromConfig(config Config) (*Cacher, error) {
 		// - reflector.ListAndWatch
 		// and there are no guarantees on the order that they will stop.
 		// So we will be simply closing the channel, and synchronizing on the WaitGroup.
-		stopCh:             stopCh,
-		clock:              clock,
-		timer:              time.NewTimer(time.Duration(0)),
-		bookmarkWatchers:   newTimeBucketWatchers(clock),
-		rejectListFromNode: config.RejectListFromNode,
+		stopCh:               stopCh,
+		clock:                clock,
+		timer:                time.NewTimer(time.Duration(0)),
+		bookmarkWatchers:     newTimeBucketWatchers(clock),
+		enableEtcdProtection: config.EnableEtcdProtection,
 	}
 
 	// Ensure that timer is stopped.
@@ -617,7 +615,8 @@ func (c *Cacher) GetToList(ctx context.Context, key string, resourceVersion stri
 	}
 
 	if listRV == 0 && !c.ready.check() {
-		if c.rejectListFromNode && isRequestFromNode(ctx) {
+		// If Cacher is not yet initialized and etcd protection is enabled, return err
+		if c.enableEtcdProtection {
 			return fmt.Errorf("waiting for cache ready")
 		}
 
@@ -693,7 +692,8 @@ func (c *Cacher) List(ctx context.Context, key string, resourceVersion string, p
 	}
 
 	if listRV == 0 && !c.ready.check() {
-		if c.rejectListFromNode && isRequestFromNode(ctx) {
+		// If Cacher is not yet initialized and etcd protection is enabled, return err
+		if c.enableEtcdProtection {
 			return fmt.Errorf("waiting for cache ready")
 		}
 
@@ -1429,16 +1429,4 @@ func (r *ready) set(ok bool) {
 	ObserveCacheStatus(ok)
 	r.ok = ok
 	r.c.Broadcast()
-}
-
-// if request's user group is "system:nodes", it must be from kubelet
-func isRequestFromNode(ctx context.Context) bool {
-	if userInfo, ok := request.UserFrom(ctx); ok {
-		for _, g := range userInfo.GetGroups() {
-			if g == user.NodesGroup {
-				return true
-			}
-		}
-	}
-	return false
 }

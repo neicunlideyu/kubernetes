@@ -481,6 +481,9 @@ func NumaTopologyMatchedPodRequest(pod *v1.Pod, refinedResourceInfo *schedulerno
 	if !utilfeature.DefaultFeatureGate.Enabled(features.NonNativeResourceSchedulingSupport) {
 		return true
 	}
+	if requestNuma := v1resource.GetResourceRequest(pod, v1.ResourceBytedanceSocket); requestNuma == 0 {
+		return true
+	}
 	if refinedResourceInfo == nil {
 		return false
 	}

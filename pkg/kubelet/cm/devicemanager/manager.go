@@ -231,7 +231,7 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 				if !m.healthyDevices[resource].IsSuperset(devices.deviceIds) {
 					klog.Infof("devices: %+v for podUID: %v isn't all healthy, needs re-allocate device plugin resources", devices, podUID)
 					m.podDevices.delete([]string{podUID})
-					m.allocatedDevices[resource].Difference(devices.deviceIds)
+					m.allocatedDevices[resource] = m.allocatedDevices[resource].Difference(devices.deviceIds)
 				}
 			}
 		}

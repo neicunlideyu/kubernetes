@@ -158,6 +158,8 @@ type ActualStateOfWorld interface {
 	// to the node. This list can be used to determine volumes that are either in-use
 	// or have a mount/unmount operation pending.
 	GetAttachedVolumes() []AttachedVolume
+
+	GetResidualVolumes() []AttachedVolume
 }
 
 // MountedVolume represents a volume that has successfully been mounted to a pod.
@@ -188,6 +190,7 @@ func NewActualStateOfWorld(
 		nodeName:        nodeName,
 		attachedVolumes: make(map[v1.UniqueVolumeName]attachedVolume),
 		volumePluginMgr: volumePluginMgr,
+		residualVolumes: make(map[v1.UniqueVolumeName]attachedVolume),
 	}
 }
 
@@ -216,6 +219,8 @@ type actualStateOfWorld struct {
 	// The key in this map is the name of the volume and the value is an object
 	// containing more information about the attached volume.
 	attachedVolumes map[v1.UniqueVolumeName]attachedVolume
+
+	residualVolumes map[v1.UniqueVolumeName]attachedVolume
 
 	// volumePluginMgr is the volume plugin manager used to create volume
 	// plugin objects.
@@ -814,6 +819,89 @@ func (asw *actualStateOfWorld) newAttachedVolume(
 			PluginName:         attachedVolume.pluginName},
 		DeviceMountState: attachedVolume.deviceMountState,
 	}
+}
+
+func (asw *actualStateOfWorld) MarkVolumeAsResidual(
+	volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, _ types.NodeName, devicePath string) error {
+	return asw.addResidualVolume(volumeName, volumeSpec, devicePath)
+}
+
+func (asw *actualStateOfWorld) RemoveResidualVolume(volumeName v1.UniqueVolumeName) {
+	asw.removeResidualVolume(volumeName)
+}
+
+func (asw *actualStateOfWorld) GetResidualVolumes() []AttachedVolume {
+	asw.RLock()
+	defer asw.RUnlock()
+
+	residualVolumes := make([]AttachedVolume, 0 /* len */, len(asw.residualVolumes) /* cap */)
+	for _, volumeObj := range asw.residualVolumes {
+		residualVolumes = append(
+			residualVolumes,
+			asw.newAttachedVolume(&volumeObj))
+	}
+
+	return residualVolumes
+}
+
+func (asw *actualStateOfWorld) removeResidualVolume(volumeName v1.UniqueVolumeName) {
+	asw.Lock()
+	defer asw.Unlock()
+	delete(asw.residualVolumes, volumeName)
+}
+
+func (asw *actualStateOfWorld) addResidualVolume(
+	volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, devicePath string) error {
+	asw.Lock()
+	defer asw.Unlock()
+
+	volumePlugin, err := asw.volumePluginMgr.FindPluginBySpec(volumeSpec)
+	if err != nil || volumePlugin == nil {
+		return fmt.Errorf(
+			"failed to get Plugin from volumeSpec for volume %q err=%v",
+			volumeSpec.Name(),
+			err)
+	}
+
+	if len(volumeName) == 0 {
+		volumeName, err = util.GetUniqueVolumeNameFromSpec(volumePlugin, volumeSpec)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to GetUniqueVolumeNameFromSpec for volumeSpec %q using volume plugin %q err=%v",
+				volumeSpec.Name(),
+				volumePlugin.GetPluginName(),
+				err)
+		}
+	}
+	if _, volumeAttached := asw.attachedVolumes[volumeName]; volumeAttached {
+		return nil
+	}
+
+	pluginIsAttachable := false
+	if _, ok := volumePlugin.(volume.AttachableVolumePlugin); ok {
+		pluginIsAttachable = true
+	}
+
+	volumeObj, volumeExists := asw.residualVolumes[volumeName]
+	if !volumeExists {
+		volumeObj = attachedVolume{
+			volumeName:         volumeName,
+			spec:               volumeSpec,
+			mountedPods:        make(map[volumetypes.UniquePodName]mountedPod),
+			pluginName:         volumePlugin.GetPluginName(),
+			pluginIsAttachable: pluginIsAttachable,
+			devicePath:         devicePath,
+		}
+	} else {
+		// If volume object already exists, update the fields such as device path
+		volumeObj.devicePath = devicePath
+		klog.V(2).Infof("Volume %q is already added to residualVolume list, update device path %q",
+			volumeName,
+			devicePath)
+	}
+	asw.residualVolumes[volumeName] = volumeObj
+
+	return nil
 }
 
 // Compile-time check to ensure volumeNotAttachedError implements the error interface

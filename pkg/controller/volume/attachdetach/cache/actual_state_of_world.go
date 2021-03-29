@@ -28,7 +28,7 @@ import (
 
 	"k8s.io/klog"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util"
@@ -664,3 +664,9 @@ func getAttachedVolume(
 		MountedByNode:       nodeAttachedTo.mountedByNode,
 		DetachRequestedTime: nodeAttachedTo.detachRequestedTime}
 }
+
+func (asw *actualStateOfWorld) MarkVolumeAsResidual(volumeName v1.UniqueVolumeName, volumeSpec *volume.Spec, nodeName types.NodeName, devicePath string) error {
+	return nil
+}
+
+func (asw *actualStateOfWorld) RemoveResidualVolume(volumeName v1.UniqueVolumeName) {}

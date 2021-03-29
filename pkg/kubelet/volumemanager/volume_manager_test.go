@@ -291,6 +291,7 @@ func newTestVolumeManager(t *testing.T, tmpDir string, podManager kubepod.Manage
 		mount.NewFakeMounter(nil),
 		hostutil.NewFakeHostUtil(nil),
 		"",
+		"",
 		fakeRecorder,
 		false, /* experimentalCheckNodeCapabilitiesBeforeMount */
 		false, /* keepTerminatedPodVolumes */

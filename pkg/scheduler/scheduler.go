@@ -343,6 +343,7 @@ func New(client clientset.Interface,
 	sched.podConditionUpdater = &podConditionUpdaterImpl{client}
 	sched.podPreemptor = &podPreemptorImpl{client}
 	sched.scheduledPodsHasSynced = podInformer.Informer().HasSynced
+	sched.podUpdater = &podUpdaterImpl{client}
 
 	addAllEventHandlers(sched, informerFactory, podInformer, bytedinformerFactory)
 	return sched, nil

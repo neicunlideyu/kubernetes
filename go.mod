@@ -469,7 +469,7 @@ replace (
 	github.com/timakin/bodyclose => github.com/timakin/bodyclose v0.0.0-20190721030226-87058b9bfcec
 	github.com/tmc/grpc-websocket-proxy => github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8
 	github.com/uber-go/atomic => github.com/uber-go/atomic v1.3.2
-	github.com/uber/jaeger-client-go => code.byted.org/tce/jaeger-client-go v2.16.0-tce-kube-tracing+incompatible
+	github.com/uber/jaeger-client-go => code.byted.org/tce/jaeger-client-go v2.16.2+incompatible
 	github.com/uber/jaeger-lib => github.com/uber/jaeger-lib v2.4.0+incompatible
 	github.com/ugorji/go/codec => github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8
 	github.com/ultraware/funlen => github.com/ultraware/funlen v0.0.2

@@ -274,13 +274,6 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 		return result, ErrNoNodesAvailable
 	}
 
-	// Run "prefilter" plugins.
-	preFilterStatus := prof.RunPreFilterPlugins(ctx, state, pod)
-	if !preFilterStatus.IsSuccess() {
-		return result, preFilterStatus.AsError()
-	}
-	trace.Step("Running prefilter plugins done")
-
 	// if the pod is preemptor, try several times to check if the nominated node is ready to place the preemptor
 	// because we need to give some time to victims eviction operation
 	if len(pod.Status.NominatedNodeName) > 0 {
@@ -321,6 +314,13 @@ func (g *genericScheduler) Schedule(ctx context.Context, prof *profile.Profile, 
 			}
 		}
 	}
+
+	// Run "prefilter" plugins.
+	preFilterStatus := prof.RunPreFilterPlugins(ctx, state, pod)
+	if !preFilterStatus.IsSuccess() {
+		return result, preFilterStatus.AsError()
+	}
+	trace.Step("Running prefilter plugins done")
 
 	startPredicateEvalTime := time.Now()
 	filteredNodes, filteredNodesStatuses, err := g.findNodesThatFitPod(ctx, prof, state, pod)
@@ -504,7 +504,13 @@ func (g *genericScheduler) Preempt(ctx context.Context, prof *profile.Profile, s
 		return nil, nil, nil, nil
 	}
 
-	return candidateNode, nodeToVictims[candidateNode].Pods, nil, nil
+	if nodeInfo, err := g.nodeInfoSnapshot.Get(candidateNode.Name); err == nil {
+		return nodeInfo.Node(), nodeToVictims[candidateNode].Pods, nil, nil
+	}
+
+	return nil, nil, nil, fmt.Errorf(
+		"preemption failed: the target node %s has been deleted from scheduler cache",
+		candidateNode.Name)
 }
 
 // processPreemptionWithExtenders processes preemption with extenders

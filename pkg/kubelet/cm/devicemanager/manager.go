@@ -211,7 +211,6 @@ func (m *ManagerImpl) genericDeviceUpdateCallback(resourceName string, devices [
 		m.mutex.Lock()
 		m.refinedNumericResources, m.refinedDiscreteResources, m.refinedDiscreteResourcesClass, m.refinedNumaTopologyStatus = getRefinedResourceFromDevices(devices)
 		m.mutex.Unlock()
-		return
 	}
 	m.mutex.Lock()
 	m.healthyDevices[resourceName] = sets.NewString()

@@ -29,6 +29,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"k8s.io/klog"
+
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -42,6 +44,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	netutils "k8s.io/utils/net"
+
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	apiservice "k8s.io/kubernetes/pkg/api/service"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/apis/core/helper"
@@ -53,7 +58,6 @@ import (
 	"k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/pkg/master/ports"
 	"k8s.io/kubernetes/pkg/security/apparmor"
-	netutils "k8s.io/utils/net"
 )
 
 const isNegativeErrorMsg string = apimachineryvalidation.IsNegativeErrorMsg
@@ -2021,7 +2025,7 @@ func ValidatePersistentVolumeClaimStatusUpdate(newPvc, oldPvc *core.PersistentVo
 
 var supportedPortProtocols = sets.NewString(string(core.ProtocolTCP), string(core.ProtocolUDP), string(core.ProtocolSCTP))
 
-func validateContainerPorts(ports []core.ContainerPort, fldPath *field.Path) field.ErrorList {
+func validateContainerPorts(isHostNetwork bool, ports []core.ContainerPort, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	allNames := sets.String{}
@@ -2039,7 +2043,9 @@ func validateContainerPorts(ports []core.ContainerPort, fldPath *field.Path) fie
 			}
 		}
 		if port.ContainerPort == 0 {
-			allErrs = append(allErrs, field.Required(idxPath.Child("containerPort"), ""))
+			if !isHostNetwork {
+				allErrs = append(allErrs, field.Required(idxPath.Child("containerPort"), ""))
+			}
 		} else {
 			for _, msg := range validation.IsValidPortNum(int(port.ContainerPort)) {
 				allErrs = append(allErrs, field.Invalid(idxPath.Child("containerPort"), port.ContainerPort, msg))
@@ -2309,13 +2315,13 @@ func GetVolumeMountMap(mounts []core.VolumeMount) map[string]string {
 }
 
 func GetVolumeDeviceMap(devices []core.VolumeDevice) map[string]string {
-	volDevices := make(map[string]string)
+	voldevices := make(map[string]string)
 
 	for _, dev := range devices {
-		volDevices[dev.Name] = dev.DevicePath
+		voldevices[dev.Name] = dev.DevicePath
 	}
 
-	return volDevices
+	return voldevices
 }
 
 func ValidateVolumeMounts(mounts []core.VolumeMount, voldevices map[string]string, volumes map[string]core.VolumeSource, container *core.Container, fldPath *field.Path) field.ErrorList {
@@ -2596,7 +2602,7 @@ func validatePullPolicy(policy core.PullPolicy, fldPath *field.Path) field.Error
 	return allErrors
 }
 
-func validateEphemeralContainers(ephemeralContainers []core.EphemeralContainer, containers, initContainers []core.Container, volumes map[string]core.VolumeSource, fldPath *field.Path) field.ErrorList {
+func validateEphemeralContainers(isHostNetwork bool, ephemeralContainers []core.EphemeralContainer, containers, initContainers []core.Container, volumes map[string]core.VolumeSource, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if len(ephemeralContainers) == 0 {
@@ -2628,7 +2634,7 @@ func validateEphemeralContainers(ephemeralContainers []core.EphemeralContainer, 
 		// of ephemeralContainers[0].spec.name)
 		// TODO(verb): factor a validateContainer() out of validateContainers() to be used here
 		c := core.Container(ec.EphemeralContainerCommon)
-		allErrs = append(allErrs, validateContainers([]core.Container{c}, false, volumes, idxPath)...)
+		allErrs = append(allErrs, validateContainers(isHostNetwork, []core.Container{c}, false, volumes, idxPath)...)
 		// EphemeralContainers don't require the backwards-compatibility distinction between pod/podTemplate validation
 		allErrs = append(allErrs, validateContainersOnlyForPod([]core.Container{c}, idxPath)...)
 
@@ -2660,10 +2666,10 @@ func validateEphemeralContainers(ephemeralContainers []core.EphemeralContainer, 
 	return allErrs
 }
 
-func validateInitContainers(containers, otherContainers []core.Container, deviceVolumes map[string]core.VolumeSource, fldPath *field.Path) field.ErrorList {
+func validateInitContainers(isHostNetwork bool, containers, otherContainers []core.Container, deviceVolumes map[string]core.VolumeSource, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 	if len(containers) > 0 {
-		allErrs = append(allErrs, validateContainers(containers, true, deviceVolumes, fldPath)...)
+		allErrs = append(allErrs, validateContainers(isHostNetwork, containers, true, deviceVolumes, fldPath)...)
 	}
 
 	allNames := sets.String{}
@@ -2694,7 +2700,7 @@ func validateInitContainers(containers, otherContainers []core.Container, device
 	return allErrs
 }
 
-func validateContainers(containers []core.Container, isInitContainers bool, volumes map[string]core.VolumeSource, fldPath *field.Path) field.ErrorList {
+func validateContainers(isHostNetwork bool, containers []core.Container, isInitContainers bool, volumes map[string]core.VolumeSource, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if len(containers) == 0 {
@@ -2747,7 +2753,7 @@ func validateContainers(containers []core.Container, isInitContainers bool, volu
 		}
 
 		allErrs = append(allErrs, validateProbe(ctr.ReadinessProbe, idxPath.Child("readinessProbe"))...)
-		allErrs = append(allErrs, validateContainerPorts(ctr.Ports, idxPath.Child("ports"))...)
+		allErrs = append(allErrs, validateContainerPorts(isHostNetwork, ctr.Ports, idxPath.Child("ports"))...)
 		allErrs = append(allErrs, ValidateEnv(ctr.Env, idxPath.Child("env"))...)
 		allErrs = append(allErrs, ValidateEnvFrom(ctr.EnvFrom, idxPath.Child("envFrom"))...)
 		allErrs = append(allErrs, ValidateVolumeMounts(ctr.VolumeMounts, volDevices, volumes, &ctr, idxPath.Child("volumeMounts"))...)
@@ -2969,11 +2975,10 @@ func validateOnlyAddedTolerations(newTolerations []core.Toleration, oldToleratio
 	allErrs := field.ErrorList{}
 	for _, old := range oldTolerations {
 		found := false
-		oldTolerationClone := old.DeepCopy()
-		for _, newToleration := range newTolerations {
-			// assign to our clone before doing a deep equal so we can allow tolerationseconds to change.
-			oldTolerationClone.TolerationSeconds = newToleration.TolerationSeconds // +k8s:verify-mutation:reason=clone
-			if reflect.DeepEqual(*oldTolerationClone, newToleration) {
+		old.TolerationSeconds = nil
+		for _, new := range newTolerations {
+			new.TolerationSeconds = nil
+			if reflect.DeepEqual(old, new) {
 				found = true
 				break
 			}
@@ -3186,11 +3191,17 @@ func ValidatePod(pod *core.Pod, opts PodValidationOptions) field.ErrorList {
 func ValidatePodSpec(spec *core.PodSpec, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
+	// Be compatible to original none-AutoPort realization, function validateContainerPorts doesn't care isHostNetwork
+	isHostNetwork := false
+	if spec.SecurityContext != nil {
+		isHostNetwork = spec.SecurityContext.HostNetwork
+	}
+
 	vols, vErrs := ValidateVolumes(spec.Volumes, fldPath.Child("volumes"))
 	allErrs = append(allErrs, vErrs...)
-	allErrs = append(allErrs, validateContainers(spec.Containers, false, vols, fldPath.Child("containers"))...)
-	allErrs = append(allErrs, validateInitContainers(spec.InitContainers, spec.Containers, vols, fldPath.Child("initContainers"))...)
-	allErrs = append(allErrs, validateEphemeralContainers(spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, fldPath.Child("ephemeralContainers"))...)
+	allErrs = append(allErrs, validateContainers(isHostNetwork, spec.Containers, false, vols, fldPath.Child("containers"))...)
+	allErrs = append(allErrs, validateInitContainers(isHostNetwork, spec.InitContainers, spec.Containers, vols, fldPath.Child("initContainers"))...)
+	allErrs = append(allErrs, validateEphemeralContainers(isHostNetwork, spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, fldPath.Child("ephemeralContainers"))...)
 	allErrs = append(allErrs, validateRestartPolicy(&spec.RestartPolicy, fldPath.Child("restartPolicy"))...)
 	allErrs = append(allErrs, validateDNSPolicy(&spec.DNSPolicy, fldPath.Child("dnsPolicy"))...)
 	allErrs = append(allErrs, unversionedvalidation.ValidateLabels(spec.NodeSelector, fldPath.Child("nodeSelector"))...)
@@ -3757,44 +3768,38 @@ func ValidatePodUpdate(newPod, oldPod *core.Pod, opts PodValidationOptions) fiel
 		allErrs = append(allErrs, field.Invalid(specPath.Child("activeDeadlineSeconds"), newPod.Spec.ActiveDeadlineSeconds, "must not update from a positive integer to nil value"))
 	}
 
-	// Allow only additions to tolerations updates.
-	allErrs = append(allErrs, validateOnlyAddedTolerations(newPod.Spec.Tolerations, oldPod.Spec.Tolerations, specPath.Child("tolerations"))...)
-
-	// the last thing to check is pod spec equality.  If the pod specs are equal, then we can simply return the errors we have
-	// so far and save the cost of a deep copy.
-	if apiequality.Semantic.DeepEqual(newPod.Spec, oldPod.Spec) {
-		return allErrs
-	}
-
 	// handle updateable fields by munging those fields prior to deep equal comparison.
-	mungedPodSpec := *newPod.Spec.DeepCopy()
+	mungedPod := *newPod
 	// munge spec.containers[*].image
 	var newContainers []core.Container
-	for ix, container := range mungedPodSpec.Containers {
-		container.Image = oldPod.Spec.Containers[ix].Image // +k8s:verify-mutation:reason=clone
+	for ix, container := range mungedPod.Spec.Containers {
+		container.Image = oldPod.Spec.Containers[ix].Image
 		newContainers = append(newContainers, container)
 	}
-	mungedPodSpec.Containers = newContainers
+	mungedPod.Spec.Containers = newContainers
 	// munge spec.initContainers[*].image
 	var newInitContainers []core.Container
-	for ix, container := range mungedPodSpec.InitContainers {
-		container.Image = oldPod.Spec.InitContainers[ix].Image // +k8s:verify-mutation:reason=clone
+	for ix, container := range mungedPod.Spec.InitContainers {
+		container.Image = oldPod.Spec.InitContainers[ix].Image
 		newInitContainers = append(newInitContainers, container)
 	}
-	mungedPodSpec.InitContainers = newInitContainers
+	mungedPod.Spec.InitContainers = newInitContainers
 	// munge spec.activeDeadlineSeconds
-	mungedPodSpec.ActiveDeadlineSeconds = nil
+	mungedPod.Spec.ActiveDeadlineSeconds = nil
 	if oldPod.Spec.ActiveDeadlineSeconds != nil {
 		activeDeadlineSeconds := *oldPod.Spec.ActiveDeadlineSeconds
-		mungedPodSpec.ActiveDeadlineSeconds = &activeDeadlineSeconds
+		mungedPod.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
 	}
-	// tolerations are checked before the deep copy, so munge those too
-	mungedPodSpec.Tolerations = oldPod.Spec.Tolerations // +k8s:verify-mutation:reason=clone
 
-	if !apiequality.Semantic.DeepEqual(mungedPodSpec, oldPod.Spec) {
+	// Allow only additions to tolerations updates.
+	mungedPod.Spec.Tolerations = oldPod.Spec.Tolerations
+	allErrs = append(allErrs, validateOnlyAddedTolerations(newPod.Spec.Tolerations, oldPod.Spec.Tolerations, specPath.Child("tolerations"))...)
+
+	_, autoport := oldPod.ObjectMeta.Annotations[utilpod.PodAutoPortAnnotation]
+	if !autoport && !apiequality.Semantic.DeepEqual(mungedPod.Spec, oldPod.Spec) {
 		// This diff isn't perfect, but it's a helluva lot better an "I'm not going to tell you what the difference is".
 		//TODO: Pinpoint the specific field that causes the invalid error after we have strategic merge diff
-		specDiff := diff.ObjectDiff(mungedPodSpec, oldPod.Spec)
+		specDiff := diff.ObjectDiff(mungedPod.Spec, oldPod.Spec)
 		allErrs = append(allErrs, field.Forbidden(specPath, fmt.Sprintf("pod updates may not change fields other than `spec.containers[*].image`, `spec.initContainers[*].image`, `spec.activeDeadlineSeconds` or `spec.tolerations` (only additions to existing tolerations)\n%v", specDiff)))
 	}
 
@@ -3826,7 +3831,8 @@ func ValidateContainerStateTransition(newStatuses, oldStatuses []core.ContainerS
 	return allErrs
 }
 
-// ValidatePodStatusUpdate tests to see if the update is legal for an end user to make.
+// ValidatePodStatusUpdate tests to see if the update is legal for an end user to make. newPod is updated with fields
+// that cannot be changed.
 func ValidatePodStatusUpdate(newPod, oldPod *core.Pod) field.ErrorList {
 	fldPath := field.NewPath("metadata")
 	allErrs := ValidateObjectMetaUpdate(&newPod.ObjectMeta, &oldPod.ObjectMeta, fldPath)
@@ -3848,6 +3854,9 @@ func ValidatePodStatusUpdate(newPod, oldPod *core.Pod) field.ErrorList {
 	// any terminated containers to a non-terminated state.
 	allErrs = append(allErrs, ValidateContainerStateTransition(newPod.Status.ContainerStatuses, oldPod.Status.ContainerStatuses, fldPath.Child("containerStatuses"), oldPod.Spec.RestartPolicy)...)
 	allErrs = append(allErrs, ValidateContainerStateTransition(newPod.Status.InitContainerStatuses, oldPod.Status.InitContainerStatuses, fldPath.Child("initContainerStatuses"), oldPod.Spec.RestartPolicy)...)
+
+	// For status update we ignore changes to pod spec.
+	newPod.Spec = oldPod.Spec
 
 	return allErrs
 }
@@ -3877,7 +3886,7 @@ func ValidatePodEphemeralContainersUpdate(newPod, oldPod *core.Pod) field.ErrorL
 	for _, vol := range spec.Volumes {
 		vols[vol.Name] = vol.VolumeSource
 	}
-	allErrs := validateEphemeralContainers(spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, specPath)
+	allErrs := validateEphemeralContainers(spec.SecurityContext.HostNetwork, spec.EphemeralContainers, spec.Containers, spec.InitContainers, vols, specPath)
 
 	// Existing EphemeralContainers may not be changed. Order isn't preserved by patch, so check each individually.
 	newContainerIndex := make(map[string]*core.EphemeralContainer)
@@ -4610,8 +4619,11 @@ func ValidateNodeUpdate(node, oldNode *core.Node, opts NodeValidationOptions) fi
 		addresses[address] = true
 	}
 
-	// Allow the controller manager to assign a CIDR to a node if it doesn't have one.
-	if len(oldNode.Spec.PodCIDRs) > 0 {
+	if len(oldNode.Spec.PodCIDRs) == 0 {
+		// Allow the controller manager to assign a CIDR to a node if it doesn't have one.
+		//this is a no op for a string slice.
+		oldNode.Spec.PodCIDRs = node.Spec.PodCIDRs
+	} else {
 		// compare the entire slice
 		if len(oldNode.Spec.PodCIDRs) != len(node.Spec.PodCIDRs) {
 			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "podCIDRs"), "node updates may not change podCIDR except from \"\" to valid"))
@@ -4625,34 +4637,45 @@ func ValidateNodeUpdate(node, oldNode *core.Node, opts NodeValidationOptions) fi
 	}
 
 	// Allow controller manager updating provider ID when not set
-	if len(oldNode.Spec.ProviderID) > 0 && oldNode.Spec.ProviderID != node.Spec.ProviderID {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "providerID"), "node updates may not change providerID except from \"\" to valid"))
+	if len(oldNode.Spec.ProviderID) == 0 {
+		oldNode.Spec.ProviderID = node.Spec.ProviderID
+	} else {
+		if oldNode.Spec.ProviderID != node.Spec.ProviderID {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "providerID"), "node updates may not change providerID except from \"\" to valid"))
+		}
 	}
 
 	if node.Spec.ConfigSource != nil {
 		allErrs = append(allErrs, validateNodeConfigSourceSpec(node.Spec.ConfigSource, field.NewPath("spec", "configSource"))...)
 	}
+	oldNode.Spec.ConfigSource = node.Spec.ConfigSource
 	if node.Status.Config != nil {
 		allErrs = append(allErrs, validateNodeConfigStatus(node.Status.Config, field.NewPath("status", "config"))...)
 	}
+	oldNode.Status.Config = node.Status.Config
+
+	// TODO: move reset function to its own location
+	// Ignore metadata changes now that they have been tested
+	oldNode.ObjectMeta = node.ObjectMeta
+	// Allow users to update capacity
+	oldNode.Status.Capacity = node.Status.Capacity
+	// Allow users to unschedule node
+	oldNode.Spec.Unschedulable = node.Spec.Unschedulable
+	// Clear status
+	oldNode.Status = node.Status
 
 	// update taints
 	if len(node.Spec.Taints) > 0 {
 		allErrs = append(allErrs, validateNodeTaints(node.Spec.Taints, fldPath.Child("taints"))...)
 	}
+	oldNode.Spec.Taints = node.Spec.Taints
 
-	if node.Spec.DoNotUseExternalID != oldNode.Spec.DoNotUseExternalID {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "externalID"), "may not be updated"))
+	// We made allowed changes to oldNode, and now we compare oldNode to node. Any remaining differences indicate changes to protected fields.
+	// TODO: Add a 'real' error type for this error and provide print actual diffs.
+	if !apiequality.Semantic.DeepEqual(oldNode, node) {
+		klog.V(4).Infof("Update failed validation %#v vs %#v", oldNode, node)
+		allErrs = append(allErrs, field.Forbidden(field.NewPath(""), "node updates may only change labels, taints, or capacity (or configSource, if the DynamicKubeletConfig feature gate is enabled)"))
 	}
-
-	// status and metadata are allowed change (barring restrictions above), so separately test spec field.
-	// spec only has a few fields, so check the ones we don't allow changing
-	//  1. PodCIDRs - immutable after first set - checked above
-	//  2. ProviderID - immutable after first set - checked above
-	//  3. Unschedulable - allowed to change
-	//  4. Taints - allowed to change
-	//  5. ConfigSource - allowed to change (and checked above)
-	//  6. DoNotUseExternalID - immutable - checked above
 
 	return allErrs
 }
@@ -5066,6 +5089,10 @@ func ValidateSecret(secret *core.Secret) field.ErrorList {
 func ValidateSecretUpdate(newSecret, oldSecret *core.Secret) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newSecret.ObjectMeta, &oldSecret.ObjectMeta, field.NewPath("metadata"))
 
+	if len(newSecret.Type) == 0 {
+		newSecret.Type = oldSecret.Type
+	}
+
 	allErrs = append(allErrs, ValidateImmutableField(newSecret.Type, oldSecret.Type, field.NewPath("type"))...)
 	if oldSecret.Immutable != nil && *oldSecret.Immutable {
 		if newSecret.Immutable == nil || !*newSecret.Immutable {
@@ -5365,6 +5392,7 @@ func ValidateResourceQuantityValue(resource string, value resource.Quantity, fld
 }
 
 // ValidateResourceQuotaUpdate tests to see if the update is legal for an end user to make.
+// newResourceQuota is updated with fields that cannot be changed.
 func ValidateResourceQuotaUpdate(newResourceQuota, oldResourceQuota *core.ResourceQuota) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newResourceQuota.ObjectMeta, &oldResourceQuota.ObjectMeta, field.NewPath("metadata"))
 	allErrs = append(allErrs, ValidateResourceQuotaSpec(&newResourceQuota.Spec, field.NewPath("spec"))...)
@@ -5383,10 +5411,12 @@ func ValidateResourceQuotaUpdate(newResourceQuota, oldResourceQuota *core.Resour
 		allErrs = append(allErrs, field.Invalid(fldPath, newResourceQuota.Spec.Scopes, fieldImmutableErrorMsg))
 	}
 
+	newResourceQuota.Status = oldResourceQuota.Status
 	return allErrs
 }
 
 // ValidateResourceQuotaStatusUpdate tests to see if the status update is legal for an end user to make.
+// newResourceQuota is updated with fields that cannot be changed.
 func ValidateResourceQuotaStatusUpdate(newResourceQuota, oldResourceQuota *core.ResourceQuota) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newResourceQuota.ObjectMeta, &oldResourceQuota.ObjectMeta, field.NewPath("metadata"))
 	if len(newResourceQuota.ResourceVersion) == 0 {
@@ -5404,6 +5434,7 @@ func ValidateResourceQuotaStatusUpdate(newResourceQuota, oldResourceQuota *core.
 		allErrs = append(allErrs, ValidateResourceQuotaResourceName(string(k), resPath)...)
 		allErrs = append(allErrs, ValidateResourceQuantityValue(string(k), v, resPath)...)
 	}
+	newResourceQuota.Spec = oldResourceQuota.Spec
 	return allErrs
 }
 
@@ -5436,14 +5467,19 @@ func validateKubeFinalizerName(stringValue string, fldPath *field.Path) field.Er
 }
 
 // ValidateNamespaceUpdate tests to make sure a namespace update can be applied.
+// newNamespace is updated with fields that cannot be changed
 func ValidateNamespaceUpdate(newNamespace *core.Namespace, oldNamespace *core.Namespace) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newNamespace.ObjectMeta, &oldNamespace.ObjectMeta, field.NewPath("metadata"))
+	newNamespace.Spec.Finalizers = oldNamespace.Spec.Finalizers
+	newNamespace.Status = oldNamespace.Status
 	return allErrs
 }
 
-// ValidateNamespaceStatusUpdate tests to see if the update is legal for an end user to make.
+// ValidateNamespaceStatusUpdate tests to see if the update is legal for an end user to make. newNamespace is updated with fields
+// that cannot be changed.
 func ValidateNamespaceStatusUpdate(newNamespace, oldNamespace *core.Namespace) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newNamespace.ObjectMeta, &oldNamespace.ObjectMeta, field.NewPath("metadata"))
+	newNamespace.Spec = oldNamespace.Spec
 	if newNamespace.DeletionTimestamp.IsZero() {
 		if newNamespace.Status.Phase != core.NamespaceActive {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("status", "Phase"), newNamespace.Status.Phase, "may only be 'Active' if `deletionTimestamp` is empty"))
@@ -5457,6 +5493,7 @@ func ValidateNamespaceStatusUpdate(newNamespace, oldNamespace *core.Namespace) f
 }
 
 // ValidateNamespaceFinalizeUpdate tests to see if the update is legal for an end user to make.
+// newNamespace is updated with fields that cannot be changed.
 func ValidateNamespaceFinalizeUpdate(newNamespace, oldNamespace *core.Namespace) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newNamespace.ObjectMeta, &oldNamespace.ObjectMeta, field.NewPath("metadata"))
 
@@ -5465,6 +5502,7 @@ func ValidateNamespaceFinalizeUpdate(newNamespace, oldNamespace *core.Namespace)
 		idxPath := fldPath.Index(i)
 		allErrs = append(allErrs, validateFinalizerName(string(newNamespace.Spec.Finalizers[i]), idxPath)...)
 	}
+	newNamespace.Status = oldNamespace.Status
 	return allErrs
 }
 
@@ -5546,15 +5584,11 @@ func validateEndpointAddress(address *core.EndpointAddress, fldPath *field.Path)
 	return allErrs
 }
 
-// ValidateNonSpecialIP is used to validate Endpoints, EndpointSlices, and
-// external IPs. Specifically, this disallows unspecified and loopback addresses
-// are nonsensical and link-local addresses tend to be used for node-centric
-// purposes (e.g. metadata service).
-//
-// IPv6 references
-// - https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml
-// - https://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml
 func ValidateNonSpecialIP(ipAddress string, fldPath *field.Path) field.ErrorList {
+	// We disallow some IPs as endpoints or external-ips.  Specifically,
+	// unspecified and loopback addresses are nonsensical and link-local
+	// addresses tend to be used for node-centric purposes (e.g. metadata
+	// service).
 	allErrs := field.ErrorList{}
 	ip := net.ParseIP(ipAddress)
 	if ip == nil {

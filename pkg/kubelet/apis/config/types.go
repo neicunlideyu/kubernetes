@@ -19,6 +19,7 @@ package config
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 )
 
 // HairpinMode denotes how the kubelet should configure networking to handle
@@ -341,6 +342,8 @@ type KubeletConfiguration struct {
 	// The purpose of this format is make sure you have the opportunity to notice if the next release hides additional metrics,
 	// rather than being surprised when they are permanently removed in the release after that.
 	ShowHiddenMetricsForVersion string
+
+	HostPortRange              netutil.PortRange
 }
 
 // KubeletAuthorizationMode denotes the authorization mode for the kubelet

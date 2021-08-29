@@ -44,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/clock"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -60,6 +61,8 @@ import (
 	internalapi "k8s.io/cri-api/pkg/apis"
 	"k8s.io/klog"
 	pluginwatcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
+
+	utilpod "k8s.io/kubernetes/pkg/api/pod"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletconfiginternal "k8s.io/kubernetes/pkg/kubelet/apis/config"
@@ -74,6 +77,7 @@ import (
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim"
 	dockerremote "k8s.io/kubernetes/pkg/kubelet/dockershim/remote"
+	dynamic "k8s.io/kubernetes/pkg/kubelet/dynamicpodspec"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/eviction"
 	"k8s.io/kubernetes/pkg/kubelet/images"
@@ -625,6 +629,7 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 		experimentalHostUserNamespaceDefaulting: utilfeature.DefaultFeatureGate.Enabled(features.ExperimentalHostUserNamespaceDefaultingGate),
 		keepTerminatedPodVolumes:                keepTerminatedPodVolumes,
 		nodeStatusMaxImages:                     nodeStatusMaxImages,
+		hostPortRange:                           kubeCfg.HostPortRange,
 	}
 
 	if klet.cloud != nil {
@@ -886,6 +891,15 @@ func NewMainKubelet(kubeCfg *kubeletconfiginternal.KubeletConfiguration,
 
 	criticalPodAdmissionHandler := preemption.NewCriticalPodAdmissionHandler(klet.GetActivePods, killPodNow(klet.podWorkers, kubeDeps.Recorder), kubeDeps.Recorder)
 	klet.admitHandlers.AddPodAdmitHandler(lifecycle.NewPredicateAdmitHandler(klet.getNodeAnyWay, criticalPodAdmissionHandler, klet.containerManager.UpdatePluginResources))
+
+	podUpdater := dynamic.NewPodUpdater(klet.kubeClient)
+
+	assignPort := dynamic.NewAssignPortHandler(utilpod.PodAutoPortAnnotation, klet.hostPortRange, podUpdater)
+	klet.admitHandlers.AddPodAdmitHandler(assignPort)
+
+	// podUpdater must be registered after all dynamic pod spec handlers have been registered
+	klet.admitHandlers.AddPodAdmitHandler(podUpdater)
+
 	// apply functional Option's
 	for _, opt := range kubeDeps.Options {
 		opt(klet)
@@ -1237,6 +1251,7 @@ type Kubelet struct {
 	// pluginmanager runs a set of asynchronous loops that figure out which
 	// plugins need to be registered/unregistered based on this node and makes it so.
 	pluginManager pluginmanager.PluginManager
+	hostPortRange netutil.PortRange
 
 	// This flag sets a maximum number of images to report in the node status.
 	nodeStatusMaxImages int32

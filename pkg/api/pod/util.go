@@ -39,6 +39,7 @@ const (
 	InitContainers
 	// EphemeralContainers is for ephemeral containers
 	EphemeralContainers
+	PodAutoPortAnnotation = "pod.kubernetes.io/autoport"
 )
 
 // AllContainers specifies that all containers be visited
